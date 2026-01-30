@@ -108,17 +108,37 @@ STRUCTURE REQUIREMENTS:
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>[Tool Name] - Fast Track</title>
   <style>
-    /* FAST TRACK BRAND - 4 colors only, no rounded corners */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono&display=swap');
+    /* FAST TRACK BRAND FONTS */
+    @font-face {
+      font-family: 'Plaak';
+      src: url('https://bgzbgz.github.io/fast-track-tool-system-v4/fonts/Plaak3Trial-43-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Riforma';
+      src: url('https://bgzbgz.github.io/fast-track-tool-system-v4/fonts/RiformaLL-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Monument Grotesk Mono';
+      src: url('https://bgzbgz.github.io/fast-track-tool-system-v4/fonts/MonumentGrotesk-Mono.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
 
     :root {
       --black: #000000;
       --white: #FFFFFF;
       --yellow: #FFF469;
       --grey: #B2B2B2;
-      --font-headline: 'Inter', system-ui, sans-serif;
-      --font-body: 'Inter', system-ui, sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
+      --font-headline: 'Plaak', system-ui, sans-serif;
+      --font-body: 'Riforma', system-ui, sans-serif;
+      --font-mono: 'Monument Grotesk Mono', monospace;
     }
 
     /* Reset */
