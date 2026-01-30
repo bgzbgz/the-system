@@ -26,7 +26,15 @@ export type StageName =
   | 'toolBuilder'
   | 'templateDecider'
   | 'qaDepartment'
-  | 'feedbackApplier';
+  | 'feedbackApplier'
+  // Pre-submission context stages
+  | 'contextInterviewer'
+  | 'audienceProfiler'
+  | 'exampleGenerator'
+  // Quality enhancement stages
+  | 'copyWriter'
+  | 'brandGuardian'
+  | 'edgeCaseTester';
 
 /**
  * Pipeline result status
@@ -173,6 +181,179 @@ export interface FeedbackApplierInput {
 }
 
 /**
+ * Input for Audience Profiler stage
+ */
+export interface AudienceProfilerInput {
+  /** Tool specification */
+  toolSpec: ToolSpec;
+  /** Summary of the content */
+  contentSummary: string;
+}
+
+/**
+ * Output from Audience Profiler stage
+ */
+export interface AudienceProfilerOutput {
+  /** Detailed audience profile */
+  profile: {
+    primaryPersona: {
+      name: string;
+      businessStage: string;
+      decisionStyle: string;
+      timePressure: string;
+      technicalComfort: string;
+      emotionalState: string;
+      quote: string;
+    };
+    languageGuidelines: {
+      tone: string;
+      complexity: string;
+      jargonLevel: string;
+      examplesStyle: string;
+    };
+    uxRecommendations: {
+      inputStyle: string;
+      resultFormat: string;
+      commitmentLevel: string;
+      helpTextDensity: string;
+    };
+    redFlags: string[];
+  };
+}
+
+/**
+ * Input for Example Generator stage
+ */
+export interface ExampleGeneratorInput {
+  /** Tool specification */
+  toolSpec: ToolSpec;
+  /** Audience profile */
+  audienceProfile: AudienceProfilerOutput['profile'];
+}
+
+/**
+ * Output from Example Generator stage
+ */
+export interface ExampleGeneratorOutput {
+  /** Test scenarios for validating tool logic */
+  testScenarios: Array<{
+    name: string;
+    inputs: Record<string, string | number>;
+    expectedVerdict: 'GO' | 'NO-GO';
+    reasoning: string;
+  }>;
+  /** Case studies for inspiring users */
+  caseStudies: Array<{
+    id: string;
+    title: string;
+    business: {
+      name: string;
+      location: string;
+      industry: string;
+      size: string;
+    };
+    situation: {
+      challenge: string;
+      stakesDescription: string;
+    };
+    application: {
+      toolUsed: string;
+      keyInputs: string;
+      verdict: 'GO' | 'NO-GO';
+      decision: string;
+    };
+    results: {
+      primaryMetric: { label: string; before: string; after: string; improvement: string };
+      secondaryMetric: { label: string; before: string; after: string; improvement: string };
+      timeframe: string;
+      quote: string;
+    };
+  }>;
+}
+
+/**
+ * Input for Copy Writer stage
+ */
+export interface CopyWriterInput {
+  /** Tool specification */
+  toolSpec: ToolSpec;
+  /** Audience profile */
+  audienceProfile: AudienceProfilerOutput['profile'];
+}
+
+/**
+ * Output from Copy Writer stage
+ */
+export interface CopyWriterOutput {
+  /** All microcopy for the tool */
+  copy: {
+    toolTitle: string;
+    toolSubtitle: string;
+    fieldLabels: Record<string, {
+      label: string;
+      placeholder: string;
+      helpText: string;
+      errorEmpty: string;
+      errorInvalid: string;
+    }>;
+    progressMessages: string[];
+    verdicts: {
+      go: { headline: string; subtext: string; nextStep: string };
+      noGo: { headline: string; subtext: string; alternative: string };
+    };
+    commitment: {
+      headline: string;
+      whoLabel: string;
+      whatLabel: string;
+      whenLabel: string;
+    };
+    cta: {
+      primary: string;
+      secondary: string;
+      share: string;
+    };
+  };
+}
+
+/**
+ * Input for Brand Guardian stage
+ */
+export interface BrandGuardianInput {
+  /** Tool HTML to audit */
+  toolHtml: string;
+}
+
+/**
+ * Output from Brand Guardian stage
+ */
+export interface BrandGuardianOutput {
+  /** Overall compliance status */
+  overallCompliance: 'PASS' | 'FAIL' | 'NEEDS_FIXES';
+  /** Compliance scores */
+  score: {
+    colors: number;
+    typography: number;
+    visual: number;
+    tone: number;
+    overall: number;
+  };
+  /** List of violations found */
+  violations: Array<{
+    category: 'COLORS' | 'TYPOGRAPHY' | 'VISUAL' | 'TONE';
+    severity: 'CRITICAL' | 'MAJOR' | 'MINOR';
+    location: string;
+    issue: string;
+    currentValue: string;
+    correctValue: string;
+    fixCode?: string;
+  }>;
+  /** Brand strengths */
+  strengths: string[];
+  /** Final recommendation */
+  recommendation: string;
+}
+
+/**
  * Union of all stage inputs
  */
 export type StageInput =
@@ -180,7 +361,11 @@ export type StageInput =
   | ToolBuilderInput
   | TemplateDeciderInput
   | QAInput
-  | FeedbackApplierInput;
+  | FeedbackApplierInput
+  | AudienceProfilerInput
+  | ExampleGeneratorInput
+  | CopyWriterInput
+  | BrandGuardianInput;
 
 // ========== STAGE OUTPUTS ==========
 
@@ -236,7 +421,11 @@ export type StageOutput =
   | ToolBuilderOutput
   | TemplateDeciderOutput
   | QAOutput
-  | FeedbackApplierOutput;
+  | FeedbackApplierOutput
+  | AudienceProfilerOutput
+  | ExampleGeneratorOutput
+  | CopyWriterOutput
+  | BrandGuardianOutput;
 
 // ========== TYPE GUARDS ==========
 

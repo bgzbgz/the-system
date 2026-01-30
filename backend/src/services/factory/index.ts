@@ -25,7 +25,16 @@ import {
   FeedbackApplierInput,
   FeedbackApplierOutput,
   ToolSpec,
-  TemplateType
+  TemplateType,
+  // New enhanced stage types
+  AudienceProfilerInput,
+  AudienceProfilerOutput,
+  ExampleGeneratorInput,
+  ExampleGeneratorOutput,
+  CopyWriterInput,
+  CopyWriterOutput,
+  BrandGuardianInput,
+  BrandGuardianOutput
 } from './types';
 import { getStage } from './stages';
 import {
@@ -159,27 +168,80 @@ export class ToolFactory {
       toolSpec = secretaryOutput.toolSpec!;
     }
 
-    // Stage 2 (Optional): Template Decider
+    // ========== NEW ENHANCED STAGES ==========
+
+    // Stage 2: Audience Profiler - Understand target user
+    console.log(`[Factory] Running Audience Profiler for job ${request.jobId}`);
+    const audienceOutput = await this.executeStage<AudienceProfilerInput, AudienceProfilerOutput>(
+      'audienceProfiler',
+      { toolSpec, contentSummary: request.userRequest.substring(0, 2000) },
+      context
+    );
+
+    // Stage 3: Example Generator - Create case studies
+    console.log(`[Factory] Running Example Generator for job ${request.jobId}`);
+    const examplesOutput = await this.executeStage<ExampleGeneratorInput, ExampleGeneratorOutput>(
+      'exampleGenerator',
+      { toolSpec, audienceProfile: audienceOutput.profile },
+      context
+    );
+
+    // Stage 4: Copy Writer - Generate microcopy
+    console.log(`[Factory] Running Copy Writer for job ${request.jobId}`);
+    const copyOutput = await this.executeStage<CopyWriterInput, CopyWriterOutput>(
+      'copyWriter',
+      { toolSpec, audienceProfile: audienceOutput.profile },
+      context
+    );
+
+    // Enhance toolSpec with copywriting and case studies
+    const enhancedSpec = {
+      ...toolSpec,
+      _enhancedContext: {
+        audienceProfile: audienceOutput.profile,
+        caseStudies: examplesOutput.caseStudies,
+        testScenarios: examplesOutput.testScenarios,
+        copy: copyOutput.copy
+      }
+    };
+
+    // ========== ORIGINAL STAGES (with enhanced context) ==========
+
+    // Stage 5 (Optional): Template Decider
     let template: TemplateType | undefined = request.templateHint;
 
     if (!request.skipTemplateDecider && !template) {
       const templateOutput = await this.executeStage<TemplateDeciderInput, TemplateDeciderOutput>(
         'templateDecider',
-        { toolSpec },
+        { toolSpec: enhancedSpec },
         context
       );
       template = templateOutput.decision.template;
     }
 
-    // Stage 3: Tool Builder - Generate HTML
+    // Stage 6: Tool Builder - Generate HTML (with enhanced context)
     const builderOutput = await this.executeStage<ToolBuilderInput, ToolBuilderOutput>(
       'toolBuilder',
-      { toolSpec, template },
+      { toolSpec: enhancedSpec, template },
       context
     );
 
-    // Stage 4+: QA with retry loop
-    const qaResult = await this.runQAWithRetry(builderOutput.html, toolSpec, context);
+    // Stage 7: Brand Guardian - Verify brand compliance
+    console.log(`[Factory] Running Brand Guardian for job ${request.jobId}`);
+    const brandOutput = await this.executeStage<BrandGuardianInput, BrandGuardianOutput>(
+      'brandGuardian',
+      { toolHtml: builderOutput.html },
+      context
+    );
+
+    // Log brand compliance
+    console.log(`[Factory] Brand Guardian result: ${brandOutput.overallCompliance} (score: ${brandOutput.score.overall})`);
+    if (brandOutput.violations.length > 0) {
+      console.log(`[Factory] Brand violations: ${brandOutput.violations.length}`);
+    }
+
+    // Stage 8+: QA with retry loop
+    const qaResult = await this.runQAWithRetry(builderOutput.html, enhancedSpec, context);
 
     // Log pipeline completion
     logPipelineComplete(context, qaResult.result.passed);

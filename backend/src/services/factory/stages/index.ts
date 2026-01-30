@@ -10,17 +10,27 @@ import { toolBuilderStage } from './toolBuilder';
 import { templateDeciderStage } from './templateDecider';
 import { qaDepartmentStage } from './qaDepartment';
 import { feedbackApplierStage } from './feedbackApplier';
+// New enhanced stages
+import { audienceProfilerStage } from './audienceProfiler';
+import { exampleGeneratorStage } from './exampleGenerator';
+import { copyWriterStage } from './copyWriter';
+import { brandGuardianStage } from './brandGuardian';
 import type { Stage, StageName } from '../types';
 
 /**
  * All stages indexed by name
  */
-export const stages: Record<StageName, Stage> = {
+export const stages: Partial<Record<StageName, Stage>> = {
   secretary: secretaryStage,
   toolBuilder: toolBuilderStage,
   templateDecider: templateDeciderStage,
   qaDepartment: qaDepartmentStage,
-  feedbackApplier: feedbackApplierStage
+  feedbackApplier: feedbackApplierStage,
+  // New enhanced stages
+  audienceProfiler: audienceProfilerStage,
+  exampleGenerator: exampleGeneratorStage,
+  copyWriter: copyWriterStage,
+  brandGuardian: brandGuardianStage
 };
 
 /**
@@ -51,5 +61,10 @@ export {
   toolBuilderStage,
   templateDeciderStage,
   qaDepartmentStage,
-  feedbackApplierStage
+  feedbackApplierStage,
+  // New enhanced stages
+  audienceProfilerStage,
+  exampleGeneratorStage,
+  copyWriterStage,
+  brandGuardianStage
 };
