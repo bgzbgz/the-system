@@ -182,7 +182,15 @@ export type AgentName =
   | 'feedbackApplier'
   | 'courseAnalyst'
   | 'knowledgeArchitect'
-  | 'contentSummarizer';
+  | 'contentSummarizer'
+  // New pre-submission agents
+  | 'contextInterviewer'
+  | 'audienceProfiler'
+  | 'exampleGenerator'
+  // New quality enhancement agents
+  | 'copyWriter'
+  | 'brandGuardian'
+  | 'edgeCaseTester';
 
 /**
  * Metadata wrapper for each agent's prompt
@@ -194,6 +202,10 @@ export interface AgentPrompt {
   systemPrompt: string;
   /** Human-readable description of agent's purpose */
   description: string;
+  /** Optional template for user prompts with {{variables}} */
+  userPromptTemplate?: string;
+  /** Expected output format */
+  outputFormat?: 'json' | 'html' | 'text';
 }
 
 // ========== CONTEXT TYPES ==========

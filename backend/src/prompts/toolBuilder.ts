@@ -334,6 +334,128 @@ STRUCTURE REQUIREMENTS:
     }
     .error-message.show { display: inline-block; }
 
+    /* Case Studies Button */
+    .case-studies-btn {
+      width: 100%;
+      padding: 12px 24px;
+      background: var(--white);
+      color: var(--black);
+      border: 2px solid var(--black);
+      font-family: var(--font-headline);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: background 0.15s ease;
+    }
+    .case-studies-btn:hover {
+      background: var(--yellow);
+    }
+
+    /* Case Studies Modal */
+    .case-studies-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    .case-studies-modal.show { display: block; }
+    .case-studies-content {
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 32px;
+      background: var(--white);
+      border: 2px solid var(--black);
+    }
+    .case-studies-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--black);
+    }
+    .case-studies-header h2 {
+      font-family: var(--font-headline);
+      font-size: 24px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 32px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .case-study {
+      padding: 24px;
+      margin-bottom: 24px;
+      border: 2px solid var(--black);
+    }
+    .case-study:last-child { margin-bottom: 0; }
+    .case-study-title {
+      font-family: var(--font-headline);
+      font-size: 16px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .case-study-location {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--grey);
+      margin-bottom: 16px;
+    }
+    .case-study-story {
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .case-study-results {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .case-study-metric {
+      flex: 1;
+      min-width: 120px;
+      padding: 16px;
+      background: var(--black);
+      color: var(--white);
+      text-align: center;
+    }
+    .metric-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .metric-value {
+      font-family: var(--font-headline);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--yellow);
+    }
+    .case-study-quote {
+      font-family: var(--font-body);
+      font-style: italic;
+      padding: 16px;
+      border-left: 4px solid var(--yellow);
+      margin-top: 16px;
+      background: #FFFEF0;
+    }
+
     /* Step counter */
     .step-counter {
       font-family: var(--font-mono);
@@ -406,8 +528,83 @@ STRUCTURE REQUIREMENTS:
           </div>
           <button type="button" class="btn-primary" onclick="shareResults()">SHARE MY DECISION</button>
         </div>
+
+        <!-- Case Studies Button -->
+        <button type="button" class="case-studies-btn" onclick="showCaseStudies()">
+          SEE HOW OTHERS APPLIED THIS
+        </button>
       </div>
     </main>
+  </div>
+
+  <!-- Case Studies Modal -->
+  <div id="caseStudiesModal" class="case-studies-modal">
+    <div class="case-studies-content">
+      <div class="case-studies-header">
+        <h2>REAL RESULTS FROM FAST TRACK CLIENTS</h2>
+        <button class="close-modal" onclick="closeCaseStudies()">&times;</button>
+      </div>
+
+      <!-- Case Study 1: GO Example -->
+      <div class="case-study">
+        <div class="case-study-title">[CASE STUDY 1 TITLE - e.g., "HOW SARAH DOUBLED HER MARGINS"]</div>
+        <div class="case-study-location">[LOCATION - e.g., "MANCHESTER, UK | RETAIL BUSINESS"]</div>
+        <div class="case-study-story">
+          [THE STORY: What challenge they faced, how they used this tool/knowledge, what decision they made, and what happened. 2-3 sentences max.]
+        </div>
+        <div class="case-study-results">
+          <div class="case-study-metric">
+            <div class="metric-label">[METRIC 1 NAME]</div>
+            <div class="metric-value">[BEFORE → AFTER]</div>
+          </div>
+          <div class="case-study-metric">
+            <div class="metric-label">[METRIC 2 NAME]</div>
+            <div class="metric-value">[IMPROVEMENT %]</div>
+          </div>
+        </div>
+        <div class="case-study-quote">"[Client quote about the impact]"</div>
+      </div>
+
+      <!-- Case Study 2: NO-GO Example (Saved from disaster) -->
+      <div class="case-study">
+        <div class="case-study-title">[CASE STUDY 2 TITLE - e.g., "HOW RAVI AVOIDED A 50K MISTAKE"]</div>
+        <div class="case-study-location">[LOCATION - e.g., "COLOMBO, SRI LANKA | TECH STARTUP"]</div>
+        <div class="case-study-story">
+          [THE STORY: How the NO-GO verdict saved them from a bad decision. What they did instead. 2-3 sentences max.]
+        </div>
+        <div class="case-study-results">
+          <div class="case-study-metric">
+            <div class="metric-label">MONEY SAVED</div>
+            <div class="metric-value">[AMOUNT]</div>
+          </div>
+          <div class="case-study-metric">
+            <div class="metric-label">TIME SAVED</div>
+            <div class="metric-value">[DURATION]</div>
+          </div>
+        </div>
+        <div class="case-study-quote">"[Client quote about what would have happened]"</div>
+      </div>
+
+      <!-- Case Study 3: Transformation Story -->
+      <div class="case-study">
+        <div class="case-study-title">[CASE STUDY 3 TITLE - e.g., "FROM STRUGGLING TO SCALING"]</div>
+        <div class="case-study-location">[LOCATION - e.g., "AUSTIN, TEXAS | SERVICE BUSINESS"]</div>
+        <div class="case-study-story">
+          [THE STORY: The transformation journey. Before state, using the tool, after state. 2-3 sentences max.]
+        </div>
+        <div class="case-study-results">
+          <div class="case-study-metric">
+            <div class="metric-label">[PRIMARY METRIC]</div>
+            <div class="metric-value">[RESULT]</div>
+          </div>
+          <div class="case-study-metric">
+            <div class="metric-label">[SECONDARY METRIC]</div>
+            <div class="metric-value">[RESULT]</div>
+          </div>
+        </div>
+        <div class="case-study-quote">"[Client quote about the transformation]"</div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -526,6 +723,31 @@ STRUCTURE REQUIREMENTS:
         alert('Commitment copied to clipboard!');
       });
     }
+
+    // ========== CASE STUDIES MODAL ==========
+    function showCaseStudies() {
+      document.getElementById('caseStudiesModal').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeCaseStudies() {
+      document.getElementById('caseStudiesModal').classList.remove('show');
+      document.body.style.overflow = '';
+    }
+
+    // Close modal on escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeCaseStudies();
+      }
+    });
+
+    // Close modal when clicking outside content
+    document.getElementById('caseStudiesModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeCaseStudies();
+      }
+    });
   </script>
 </body>
 </html>

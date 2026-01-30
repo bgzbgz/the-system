@@ -18,6 +18,14 @@ import { feedbackApplierPrompt } from './feedbackApplier';
 import { courseAnalystPrompt } from './courseAnalyst';
 import { knowledgeArchitectPrompt } from './knowledgeArchitect';
 import { contentSummarizerPrompt } from './contentSummarizer';
+// Pre-submission context agents
+import { contextInterviewerPrompt } from './contextInterviewer';
+import { audienceProfilerPrompt } from './audienceProfiler';
+import { exampleGeneratorPrompt } from './exampleGenerator';
+// Quality enhancement agents
+import { copyWriterPrompt } from './copyWriter';
+import { brandGuardianPrompt } from './brandGuardian';
+import { edgeCaseTesterPrompt } from './edgeCaseTester';
 
 // Import types for record
 import { AgentName, AgentPrompt } from './types';
@@ -34,7 +42,15 @@ export const prompts: Record<AgentName, AgentPrompt> = {
   // Course-to-Tool pipeline agents
   courseAnalyst: courseAnalystPrompt,
   knowledgeArchitect: knowledgeArchitectPrompt,
-  contentSummarizer: contentSummarizerPrompt
+  contentSummarizer: contentSummarizerPrompt,
+  // Pre-submission context agents
+  contextInterviewer: contextInterviewerPrompt,
+  audienceProfiler: audienceProfilerPrompt,
+  exampleGenerator: exampleGeneratorPrompt,
+  // Quality enhancement agents
+  copyWriter: copyWriterPrompt,
+  brandGuardian: brandGuardianPrompt,
+  edgeCaseTester: edgeCaseTesterPrompt
 };
 
 /**
@@ -76,5 +92,13 @@ export {
   // Course-to-Tool pipeline agents
   courseAnalystPrompt,
   knowledgeArchitectPrompt,
-  contentSummarizerPrompt
+  contentSummarizerPrompt,
+  // Pre-submission context agents
+  contextInterviewerPrompt,
+  audienceProfilerPrompt,
+  exampleGeneratorPrompt,
+  // Quality enhancement agents
+  copyWriterPrompt,
+  brandGuardianPrompt,
+  edgeCaseTesterPrompt
 };
