@@ -1,0 +1,56 @@
+/* Brand Variables - Fast Track Tool Factory */
+/* STRICT: Only 4 colors allowed. No rounded corners. */
+
+:root {
+  /* Colors - EXACT values, no variations */
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+  --color-yellow: #FFF469;
+  --color-grey: #B2B2B2;
+
+  /* Fonts */
+  --font-headline: 'Plaak', system-ui, sans-serif;
+  --font-body: 'Riforma', system-ui, sans-serif;
+  --font-mono: 'Monument Grotesk Mono', monospace;
+
+  /* Typography - Headlines */
+  --headline-transform: uppercase;
+  --headline-weight: 700;
+  --headline-spacing: 0.02em;
+
+  /* Typography - Body */
+  --body-weight: 400;
+  --body-line-height: 1.5;
+
+  /* Typography - Labels */
+  --label-transform: uppercase;
+  --label-size: 12px;
+
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* Border - NO rounded corners */
+  --border-width: 2px;
+  --border-style: solid;
+  --border-color: var(--color-black);
+  --border: var(--border-width) var(--border-style) var(--border-color);
+  --border-radius: 0; /* MANDATORY: No rounded corners */
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+
+  /* Z-index scale */
+  --z-dropdown: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+
+  /* Touch targets - minimum 44px for accessibility */
+  --touch-target-min: 44px;
+}
