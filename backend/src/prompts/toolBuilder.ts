@@ -394,7 +394,7 @@ STRUCTURE REQUIREMENTS:
     // ========== CONFIGURATION ==========
     // IMPORTANT: Set these values for each tool
     const TOOL_SLUG = '[TOOL_SLUG]'; // e.g., 'market-size-calculator'
-    const API_BASE = 'https://your-api-domain.com'; // Set to your API URL
+    const API_BASE = 'https://the-system-production.up.railway.app'; // Railway backend
 
     // ========== FORM HANDLING ==========
     const form = document.getElementById('toolForm');
