@@ -2,11 +2,11 @@
   "name": "boss-office-backend",
   "version": "1.0.0",
   "description": "Boss Office Backend - Tool Factory Integration",
-  "main": "dist/index.js",
+  "main": "src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "build": "echo 'Using tsx runtime - no build needed'",
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -18,6 +18,7 @@
     "mongodb": "^6.0.0",
     "multer": "^1.4.5-lts.1",
     "terser": "^5.27.0",
+    "tsx": "^4.6.0",
     "typescript": "^5.3.0",
     "uuid": "^9.0.0",
     "zod": "^3.22.0"
@@ -27,7 +28,6 @@
     "@types/express": "^4.17.21",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.10.0",
-    "@types/uuid": "^9.0.7",
-    "tsx": "^4.6.0"
+    "@types/uuid": "^9.0.7"
   }
 }
