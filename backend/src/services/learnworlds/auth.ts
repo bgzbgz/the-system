@@ -36,6 +36,10 @@ export async function getAccessToken(): Promise<string | null> {
   try {
     console.log('[LearnWorlds Auth] Fetching new access token...');
 
+    // Add timeout to prevent hanging (10 second timeout)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     const response = await fetch(`${config.schoolUrl}/admin/api/oauth2/access_token`, {
       method: 'POST',
       headers: {
@@ -46,8 +50,11 @@ export async function getAccessToken(): Promise<string | null> {
         client_id: config.clientId,
         client_secret: config.apiKey,
         grant_type: 'client_credentials'
-      })
+      }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();

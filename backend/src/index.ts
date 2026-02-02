@@ -197,15 +197,23 @@ async function startServer(): Promise<void> {
   }
 
   // Step 2e: Initialize LearnWorlds Integration (spec 001-learnworlds-auth-bridge)
+  // Note: This is non-blocking - we don't wait for token fetch to complete
   initializeLearnWorldsConfig();
   logLearnWorldsConfigStatus();
   if (isLearnWorldsConfigured()) {
-    const lwAuthSuccess = await initializeLearnWorldsAuth();
-    if (lwAuthSuccess) {
-      console.log('[Startup] LearnWorlds Integration ready');
-    } else {
-      console.log('[Startup] LearnWorlds Integration configured but token fetch failed');
-    }
+    // Initialize auth in background - don't block server startup
+    initializeLearnWorldsAuth()
+      .then(success => {
+        if (success) {
+          console.log('[Startup] LearnWorlds Integration ready');
+        } else {
+          console.log('[Startup] LearnWorlds Integration configured but token fetch failed');
+        }
+      })
+      .catch(err => {
+        console.error('[Startup] LearnWorlds auth initialization error:', err);
+      });
+    console.log('[Startup] LearnWorlds Integration initializing in background...');
   } else {
     console.log('[Startup] LearnWorlds Integration not configured (optional)');
   }
