@@ -243,7 +243,7 @@ router.get('/:toolSlug', (req: Request, res: Response) => {
   <script>
     const toolSlug = '${toolSlug}';
     const toolUrl = '${toolBaseUrl}';
-    const verifyUrl = '/api/tools/verify';
+    const verifyUrl = '/api/embed/verify';
 
     const form = document.getElementById('accessForm');
     const emailInput = document.getElementById('email');
