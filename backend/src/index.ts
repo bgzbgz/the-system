@@ -25,6 +25,7 @@ import principlesRouter from './routes/principles';
 import learnworldsRouter from './routes/learnworlds';
 import toolLaunchRouter from './routes/toolLaunch';
 import toolEmbedRouter from './routes/toolEmbed';
+import automationWebhookRouter from './routes/automationWebhook';
 import configGuard from './middleware/configGuard';
 import corsMiddleware from './middleware/cors';
 import { requestLogger, lightRequestLogger } from './middleware/requestLogger';
@@ -125,6 +126,9 @@ app.use('/api/tools', toolLaunchRouter);
 
 // Tool Embed routes - embeddable widgets for LearnWorlds courses
 app.use('/api/embed', toolEmbedRouter);
+
+// Automation webhook routes - receives LearnWorlds automation webhooks
+app.use('/api/automation', automationWebhookRouter);
 
 // Root endpoint - always available
 app.get('/', (req, res) => {
