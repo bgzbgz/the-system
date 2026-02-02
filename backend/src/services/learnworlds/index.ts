@@ -26,3 +26,9 @@ export {
   ensureToolVisitsIndexes,
   type ToolVisit
 } from './toolVisits';
+export {
+  createPendingAccess,
+  checkPendingAccess,
+  ensurePendingAccessIndexes,
+  type PendingAccess
+} from './pendingAccess';

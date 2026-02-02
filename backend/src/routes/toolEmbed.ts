@@ -8,7 +8,8 @@
 import { Router, Request, Response } from 'express';
 import {
   getUserByEmail,
-  logToolVisit
+  logToolVisit,
+  checkPendingAccess
 } from '../services/learnworlds';
 import { isLearnWorldsConfigured } from '../config/learnworlds';
 
@@ -371,15 +372,45 @@ router.post('/verify', async (req: Request, res: Response) => {
     });
   }
 
-  if (!isLearnWorldsConfigured()) {
-    return res.status(503).json({
-      success: false,
-      error: 'Service not configured'
-    });
-  }
-
   try {
-    // Verify user exists in LearnWorlds
+    // FIRST: Check for pending access from tag webhook (instant!)
+    const pendingAccess = await checkPendingAccess(email, toolSlug);
+
+    if (pendingAccess) {
+      console.log(`[Tool Embed] ⚡ Instant verification via pending access: ${email} → ${toolSlug}`);
+
+      // Log the visit
+      await logToolVisit(toolSlug, {
+        id: pendingAccess.user_id,
+        email: pendingAccess.email,
+        username: pendingAccess.user_name,
+        fields: { company: pendingAccess.company },
+        tags: pendingAccess.tags
+      }, {
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent']
+      });
+
+      return res.json({
+        success: true,
+        instant: true,
+        user: {
+          id: pendingAccess.user_id,
+          email: pendingAccess.email,
+          name: pendingAccess.user_name,
+          company: pendingAccess.company
+        }
+      });
+    }
+
+    // FALLBACK: Verify via LearnWorlds API
+    if (!isLearnWorldsConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Service not configured'
+      });
+    }
+
     const user = await getUserByEmail(email);
 
     if (!user) {
@@ -395,10 +426,11 @@ router.post('/verify', async (req: Request, res: Response) => {
       userAgent: req.headers['user-agent']
     });
 
-    console.log(`[Tool Embed] ✓ Verified: ${user.email} accessing ${toolSlug}`);
+    console.log(`[Tool Embed] ✓ Verified via API: ${user.email} accessing ${toolSlug}`);
 
     res.json({
       success: true,
+      instant: false,
       user: {
         id: user.id,
         email: user.email,

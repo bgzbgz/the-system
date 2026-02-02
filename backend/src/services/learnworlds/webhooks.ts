@@ -7,6 +7,7 @@
 
 import crypto from 'crypto';
 import { getLearnWorldsConfig } from '../../config/learnworlds';
+import { createPendingAccess } from './pendingAccess';
 
 // Webhook event types from LearnWorlds
 export type WebhookEventType =
@@ -220,9 +221,26 @@ async function handlePurchase(data: Record<string, any>): Promise<WebhookProcess
 }
 
 async function handleTagAdded(data: Record<string, any>): Promise<WebhookProcessResult> {
-  const { id, email, tags } = data;
+  const { id, email, tags, fields, username, first_name, last_name } = data;
 
   console.log(`[LearnWorlds Webhook] Tags added to user ${email}: ${tags?.join(', ')}`);
+
+  // Check for tool-access tags (format: "tool-{tool-slug}")
+  if (tags && Array.isArray(tags)) {
+    for (const tag of tags) {
+      if (tag.startsWith('tool-')) {
+        const toolSlug = tag.substring(5); // Remove "tool-" prefix
+        console.log(`[LearnWorlds Webhook] Tool access tag detected: ${email} → ${toolSlug}`);
+
+        // Create pending access for instant verification
+        await createPendingAccess(id, email, toolSlug, {
+          name: [first_name, last_name].filter(Boolean).join(' ') || username,
+          company: fields?.company,
+          tags: tags
+        });
+      }
+    }
+  }
 
   return {
     success: true,

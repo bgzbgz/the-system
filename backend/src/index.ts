@@ -39,7 +39,7 @@ import { toolFactory } from './services/factory/index';
 import { githubService } from './services/github';
 import { ensureIndexes as ensureLogStoreIndexes, TTL_DAYS as LOG_TTL_DAYS } from './services/logStore';
 import { initializeLearnWorldsConfig, logLearnWorldsConfigStatus, isLearnWorldsConfigured } from './config/learnworlds';
-import { initializeAuth as initializeLearnWorldsAuth, ensureToolVisitsIndexes } from './services/learnworlds';
+import { initializeAuth as initializeLearnWorldsAuth, ensureToolVisitsIndexes, ensurePendingAccessIndexes } from './services/learnworlds';
 
 // ========== STARTUP VALIDATION ==========
 
@@ -170,6 +170,10 @@ async function initializeDatabase(): Promise<boolean> {
     // Initialize tool visits indexes
     await ensureToolVisitsIndexes();
     console.log('[Startup] Tool visits tracking ready');
+
+    // Initialize pending access indexes
+    await ensurePendingAccessIndexes();
+    console.log('[Startup] Pending access tracking ready');
 
     return true;
   } catch (error) {
