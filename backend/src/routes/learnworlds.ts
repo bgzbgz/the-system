@@ -8,6 +8,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import express from 'express';
 import { isLearnWorldsConfigured, logLearnWorldsConfigStatus } from '../config/learnworlds';
 import {
   getTokenStatus,
@@ -17,6 +18,15 @@ import {
 } from '../services/learnworlds';
 
 const router = Router();
+
+// Custom middleware to capture raw body for signature verification
+// Must be applied BEFORE the json parser
+router.use('/webhooks', express.json({
+  verify: (req: any, res, buf) => {
+    // Store raw body for signature verification
+    req.rawBody = buf.toString();
+  }
+}));
 
 /**
  * GET /api/learnworlds/health
@@ -46,12 +56,16 @@ router.get('/health', (req: Request, res: Response) => {
  * Learnworlds-Webhook-Signature: v1=<hmac-sha256>
  */
 router.post('/webhooks', async (req: Request, res: Response) => {
-  // Get raw body as string for signature verification
-  const rawBody = JSON.stringify(req.body);
+  // Get raw body for signature verification (captured by middleware)
+  const rawBody = (req as any).rawBody || JSON.stringify(req.body);
   const signature = req.headers['learnworlds-webhook-signature'] as string | undefined;
 
-  // Log incoming webhook (without full payload for security)
+  // Log incoming webhook details for debugging
   console.log(`[LearnWorlds Webhook] Received: ${req.body?.type || 'unknown'} from ${req.ip}`);
+  console.log(`[LearnWorlds Webhook] Signature present: ${!!signature}`);
+  if (signature) {
+    console.log(`[LearnWorlds Webhook] Signature format: ${signature.substring(0, 20)}...`);
+  }
 
   // Verify signature
   const isValid = verifyWebhookSignature(rawBody, signature);
