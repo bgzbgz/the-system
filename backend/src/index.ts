@@ -23,6 +23,7 @@ import jobsRouter from './routes/jobs';
 import auditRouter from './routes/audit';
 import principlesRouter from './routes/principles';
 import learnworldsRouter from './routes/learnworlds';
+import toolLaunchRouter from './routes/toolLaunch';
 import configGuard from './middleware/configGuard';
 import corsMiddleware from './middleware/cors';
 import { requestLogger, lightRequestLogger } from './middleware/requestLogger';
@@ -37,7 +38,7 @@ import { toolFactory } from './services/factory/index';
 import { githubService } from './services/github';
 import { ensureIndexes as ensureLogStoreIndexes, TTL_DAYS as LOG_TTL_DAYS } from './services/logStore';
 import { initializeLearnWorldsConfig, logLearnWorldsConfigStatus, isLearnWorldsConfigured } from './config/learnworlds';
-import { initializeAuth as initializeLearnWorldsAuth } from './services/learnworlds';
+import { initializeAuth as initializeLearnWorldsAuth, ensureToolVisitsIndexes } from './services/learnworlds';
 
 // ========== STARTUP VALIDATION ==========
 
@@ -118,6 +119,9 @@ app.use('/api/principles', principlesRouter);
 // LearnWorlds routes - webhook receiver and health check (spec 001-learnworlds-auth-bridge)
 app.use('/api/learnworlds', learnworldsRouter);
 
+// Tool Launch routes - secure tool access from LearnWorlds
+app.use('/api/tools', toolLaunchRouter);
+
 // Root endpoint - always available
 app.get('/', (req, res) => {
   res.json({
@@ -158,6 +162,10 @@ async function initializeDatabase(): Promise<boolean> {
     // Initialize agent logs indexes (spec 024-agent-reasoning-logs)
     await ensureLogStoreIndexes();
     console.log(`[Startup] Agent logs ready (TTL: ${LOG_TTL_DAYS} days)`);
+
+    // Initialize tool visits indexes
+    await ensureToolVisitsIndexes();
+    console.log('[Startup] Tool visits tracking ready');
 
     return true;
   } catch (error) {

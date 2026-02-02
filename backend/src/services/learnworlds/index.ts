@@ -13,3 +13,16 @@ export {
   type WebhookPayload,
   type WebhookProcessResult
 } from './webhooks';
+export {
+  getUserById,
+  getUserByEmail,
+  type LearnWorldsUser
+} from './users';
+export {
+  logToolVisit,
+  getToolVisits,
+  getUserVisits,
+  getToolStats,
+  ensureToolVisitsIndexes,
+  type ToolVisit
+} from './toolVisits';
