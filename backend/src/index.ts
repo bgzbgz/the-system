@@ -22,6 +22,7 @@ import callbacksRouter from './routes/callbacks';
 import jobsRouter from './routes/jobs';
 import auditRouter from './routes/audit';
 import principlesRouter from './routes/principles';
+import learnworldsRouter from './routes/learnworlds';
 import configGuard from './middleware/configGuard';
 import corsMiddleware from './middleware/cors';
 import { requestLogger, lightRequestLogger } from './middleware/requestLogger';
@@ -35,6 +36,8 @@ import { preloadAllContext } from './context';
 import { toolFactory } from './services/factory/index';
 import { githubService } from './services/github';
 import { ensureIndexes as ensureLogStoreIndexes, TTL_DAYS as LOG_TTL_DAYS } from './services/logStore';
+import { initializeLearnWorldsConfig, logLearnWorldsConfigStatus, isLearnWorldsConfigured } from './config/learnworlds';
+import { initializeAuth as initializeLearnWorldsAuth } from './services/learnworlds';
 
 // ========== STARTUP VALIDATION ==========
 
@@ -112,6 +115,9 @@ app.use('/api/factory', callbacksRouter);
 // Principles routes - serves Fast Track principle documents
 app.use('/api/principles', principlesRouter);
 
+// LearnWorlds routes - webhook receiver and health check (spec 001-learnworlds-auth-bridge)
+app.use('/api/learnworlds', learnworldsRouter);
+
 // Root endpoint - always available
 app.get('/', (req, res) => {
   res.json({
@@ -188,6 +194,20 @@ async function startServer(): Promise<void> {
     console.log(`[Startup] GitHub Deploy Service ready (${configInfo?.owner}/${configInfo?.repo})`);
   } else {
     console.log('[Startup] GitHub Deploy Service not configured (GITHUB_TOKEN/OWNER/REPO missing)');
+  }
+
+  // Step 2e: Initialize LearnWorlds Integration (spec 001-learnworlds-auth-bridge)
+  initializeLearnWorldsConfig();
+  logLearnWorldsConfigStatus();
+  if (isLearnWorldsConfigured()) {
+    const lwAuthSuccess = await initializeLearnWorldsAuth();
+    if (lwAuthSuccess) {
+      console.log('[Startup] LearnWorlds Integration ready');
+    } else {
+      console.log('[Startup] LearnWorlds Integration configured but token fetch failed');
+    }
+  } else {
+    console.log('[Startup] LearnWorlds Integration not configured (optional)');
   }
 
   // Step 3: Initialize MongoDB (optional - T058)
