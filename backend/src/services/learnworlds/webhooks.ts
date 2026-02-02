@@ -84,21 +84,16 @@ export function verifyWebhookSignature(
     .update(payload)
     .digest('hex');
 
-  console.log(`[LearnWorlds Webhook] Signature check - provided: ${providedHash.substring(0, 16)}... expected: ${expectedHash.substring(0, 16)}...`);
+  // Debug: Log lengths and partial values
+  console.log(`[LearnWorlds Webhook] Provided signature: "${providedHash}" (length: ${providedHash.length})`);
+  console.log(`[LearnWorlds Webhook] Expected signature: "${expectedHash}" (length: ${expectedHash.length})`);
+  console.log(`[LearnWorlds Webhook] Secret length: ${config.webhookSecret.length}`);
 
-  // Constant-time comparison to prevent timing attacks
-  try {
-    const isMatch = crypto.timingSafeEqual(
-      Buffer.from(providedHash, 'hex'),
-      Buffer.from(expectedHash, 'hex')
-    );
-    console.log(`[LearnWorlds Webhook] Signature ${isMatch ? 'VALID' : 'INVALID'}`);
-    return isMatch;
-  } catch (err) {
-    // If buffers are different lengths, they don't match
-    console.warn('[LearnWorlds Webhook] Signature comparison failed:', err);
-    return false;
-  }
+  // Simple string comparison (signatures are already hex strings)
+  const isMatch = providedHash === expectedHash;
+  console.log(`[LearnWorlds Webhook] Signature ${isMatch ? 'VALID ✓' : 'INVALID ✗'}`);
+
+  return isMatch;
 }
 
 /**
