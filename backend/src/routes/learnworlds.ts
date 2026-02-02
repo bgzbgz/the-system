@@ -71,14 +71,14 @@ router.post('/webhooks', async (req: Request, res: Response) => {
   const isValid = verifyWebhookSignature(rawBody, signature);
 
   if (!isValid) {
-    // For now, log warning but still process the webhook
-    // This allows testing while we debug signature issues
-    // TODO: Re-enable strict signature checking in production
-    console.warn('[LearnWorlds Webhook] ⚠️ Invalid or missing signature - processing anyway for testing');
-    console.warn('[LearnWorlds Webhook] Raw body length:', rawBody.length);
-  } else {
-    console.log('[LearnWorlds Webhook] ✓ Signature verified');
+    console.warn('[LearnWorlds Webhook] ✗ Invalid signature - rejecting request');
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid webhook signature'
+    });
   }
+
+  console.log('[LearnWorlds Webhook] ✓ Signature verified');
 
   // Parse and validate payload
   const payload = req.body as WebhookPayload;

@@ -47,7 +47,10 @@ export interface WebhookProcessResult {
  * Verify webhook signature from LearnWorlds
  *
  * LearnWorlds sends signature in header:
- * Learnworlds-Webhook-Signature: v1=<hex-encoded-hmac>
+ * Learnworlds-Webhook-Signature: v1=<webhook-secret>
+ *
+ * Note: LearnWorlds uses a simple shared secret approach, NOT HMAC.
+ * The signature is just the webhook secret itself.
  */
 export function verifyWebhookSignature(
   payload: string,
@@ -57,40 +60,31 @@ export function verifyWebhookSignature(
 
   if (!config.webhookSecret) {
     console.warn('[LearnWorlds Webhook] No webhook secret configured - allowing request');
-    // Allow if no secret configured (for testing)
     return true;
   }
 
   if (!signature) {
     console.warn('[LearnWorlds Webhook] No signature provided');
-    // For LearnWorlds "Send dummy data" testing, signature might not be present
-    // Check if this looks like a test request
-    console.log('[LearnWorlds Webhook] Payload preview:', payload.substring(0, 100));
     return false;
   }
 
-  // Extract the hash from "v1=<hash>" format
+  // Extract the secret from "v1=<secret>" format
   const signatureMatch = signature.match(/^v1=(.+)$/);
   if (!signatureMatch) {
     console.warn('[LearnWorlds Webhook] Invalid signature format:', signature);
     return false;
   }
 
-  const providedHash = signatureMatch[1];
+  const providedSecret = signatureMatch[1];
 
-  // Compute expected HMAC
-  const expectedHash = crypto
-    .createHmac('sha256', config.webhookSecret)
-    .update(payload)
-    .digest('hex');
+  // LearnWorlds sends the webhook secret directly as the signature
+  // Use constant-time comparison to prevent timing attacks
+  const isMatch = providedSecret.length === config.webhookSecret.length &&
+    crypto.timingSafeEqual(
+      Buffer.from(providedSecret, 'utf8'),
+      Buffer.from(config.webhookSecret, 'utf8')
+    );
 
-  // Debug: Log lengths and partial values
-  console.log(`[LearnWorlds Webhook] Provided signature: "${providedHash}" (length: ${providedHash.length})`);
-  console.log(`[LearnWorlds Webhook] Expected signature: "${expectedHash}" (length: ${expectedHash.length})`);
-  console.log(`[LearnWorlds Webhook] Secret length: ${config.webhookSecret.length}`);
-
-  // Simple string comparison (signatures are already hex strings)
-  const isMatch = providedHash === expectedHash;
   console.log(`[LearnWorlds Webhook] Signature ${isMatch ? 'VALID ✓' : 'INVALID ✗'}`);
 
   return isMatch;
