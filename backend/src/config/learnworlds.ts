@@ -19,10 +19,11 @@ let config: LearnWorldsConfig | null = null;
  * Initialize LearnWorlds configuration from environment variables
  */
 export function initializeLearnWorldsConfig(): LearnWorldsConfig {
-  const schoolUrl = process.env.LW_SCHOOL_URL || '';
-  const clientId = process.env.LW_CLIENT_ID || '';
-  const apiKey = process.env.LW_API_KEY || '';
-  const webhookSecret = process.env.LW_WEBHOOK_SECRET || '';
+  // Support both LW_ and LEARNWORLDS_ prefixes
+  const schoolUrl = process.env.LEARNWORLDS_SCHOOL_URL || process.env.LW_SCHOOL_URL || '';
+  const clientId = process.env.LEARNWORLDS_CLIENT_ID || process.env.LW_CLIENT_ID || '';
+  const apiKey = process.env.LEARNWORLDS_API_KEY || process.env.LW_API_KEY || '';
+  const webhookSecret = process.env.LEARNWORLDS_WEBHOOK_SECRET || process.env.LW_WEBHOOK_SECRET || '';
 
   const isConfigured = !!(schoolUrl && clientId && apiKey && webhookSecret);
 
