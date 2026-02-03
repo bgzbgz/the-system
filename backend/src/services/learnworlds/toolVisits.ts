@@ -4,7 +4,7 @@
  * Logs and tracks when LearnWorlds users visit tools
  */
 
-import { getDb, isConnected } from '../../config/database';
+import { getDB, isConnected } from '../../config/database';
 import { LearnWorldsUser } from './users';
 
 export interface ToolVisit {
@@ -58,9 +58,9 @@ export async function logToolVisit(
 
   if (isConnected()) {
     try {
-      const db = getDb();
+      const db = getDB();
       const collection = db.collection('tool_visits');
-      const result = await collection.insertOne(visit);
+      const result = await collection.insertOne(visit as unknown as Record<string, unknown>);
       visit._id = result.insertedId.toString();
       console.log(`[Tool Visits] Saved to MongoDB: ${visit._id}`);
     } catch (error) {
@@ -81,7 +81,7 @@ export async function logToolVisit(
 export async function getToolVisits(toolSlug: string, limit = 100): Promise<ToolVisit[]> {
   if (isConnected()) {
     try {
-      const db = getDb();
+      const db = getDB();
       const collection = db.collection<ToolVisit>('tool_visits');
       return await collection
         .find({ tool_slug: toolSlug })
@@ -105,7 +105,7 @@ export async function getToolVisits(toolSlug: string, limit = 100): Promise<Tool
 export async function getUserVisits(userId: string, limit = 100): Promise<ToolVisit[]> {
   if (isConnected()) {
     try {
-      const db = getDb();
+      const db = getDB();
       const collection = db.collection<ToolVisit>('tool_visits');
       return await collection
         .find({ user_id: userId })
@@ -133,7 +133,7 @@ export async function getToolStats(toolSlug: string): Promise<{
 }> {
   if (isConnected()) {
     try {
-      const db = getDb();
+      const db = getDB();
       const collection = db.collection<ToolVisit>('tool_visits');
 
       const [totalResult, uniqueResult, recentVisits] = await Promise.all([
@@ -175,7 +175,7 @@ export async function ensureToolVisitsIndexes(): Promise<void> {
   if (!isConnected()) return;
 
   try {
-    const db = getDb();
+    const db = getDB();
     const collection = db.collection('tool_visits');
 
     await collection.createIndexes([

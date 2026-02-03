@@ -200,7 +200,15 @@ export const COLLECTIONS = {
   JOBS: 'jobs',
   AUDIT_LOG: 'audit_log',
   SYSTEM_CONTEXT: 'system_context',
-  DEPLOYED_TOOLS: 'deployed_tools'
+  DEPLOYED_TOOLS: 'deployed_tools',
+  // Quality scoring collections (020-self-improving-factory)
+  QUALITY_SCORES: 'quality_scores',
+  QUALITY_PATTERNS: 'quality_patterns',
+  SUGGESTIONS: 'suggestions',
+  PROMPT_VERSIONS: 'prompt_versions',
+  AB_TESTS: 'ab_tests',
+  AB_RESULTS: 'ab_results',
+  DAILY_AGGREGATES: 'daily_aggregates',
 } as const;
 
 /**
@@ -214,12 +222,23 @@ export function getCollection<T extends Document>(name: string): Collection<T> {
 }
 
 /**
- * Get tool response collection name for a tool slug
- * Per spec: tool_{slug}_responses
+ * Get tool collection name for a tool slug
+ * Feature 021: Unified collection pattern - tool_{slug}
+ *
+ * Previously: tool_{slug}_responses (deprecated)
+ * Now: tool_{slug} (contains both defaults and responses)
  *
  * @param slug - Tool slug
  * @returns Collection name
  */
+export function getToolCollectionName(slug: string): string {
+  return `tool_${slug}`;
+}
+
+/**
+ * @deprecated Use getToolCollectionName() instead
+ * Kept for backward compatibility during transition
+ */
 export function getToolResponseCollectionName(slug: string): string {
-  return `tool_${slug}_responses`;
+  return getToolCollectionName(slug);
 }

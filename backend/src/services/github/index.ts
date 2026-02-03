@@ -21,6 +21,98 @@ import { triggerMongoSetup, generateCollectionName, getWorkflowRun } from './wor
 import { getJob, updateJob } from '../jobStore';
 import { JobStatus, Job } from '../../models/job';
 
+// Feature 021: Unified tool collection
+import * as toolCollectionService from '../../db/services/toolCollectionService';
+import { CreateDefaultsInput, CourseContext, Question } from '../../db/models/toolCollection';
+import { generateUUID } from '../../db/utils/uuid';
+
+// ========== DEFAULTS BUILDER (Feature 021) ==========
+
+/**
+ * Build defaults input from job data after successful deploy
+ * Per research.md RT-004: Construct defaults from job data during fullDeploy
+ *
+ * @param job - Job with tool data
+ * @param deployResult - Successful deploy result
+ * @returns CreateDefaultsInput
+ */
+export function buildDefaultsFromJob(
+  job: Job,
+  deployResult: DeployResult
+): CreateDefaultsInput {
+  const toolId = generateUUID();
+  const slug = job.slug || '';
+  const toolName = job.tool_name || 'Unnamed Tool';
+  const githubUrl = deployResult.pagesUrl || deployResult.repoUrl || '';
+
+  // Build courseContext from job._courseContext if available
+  let courseContext: CourseContext | undefined;
+  const jobContext = (job as Job & { _courseContext?: Record<string, unknown> })._courseContext;
+
+  if (jobContext) {
+    const deepContent = jobContext.deepContent as Record<string, unknown> | undefined;
+
+    courseContext = {};
+
+    // Map terminology
+    if (deepContent?.keyTerminology) {
+      const terms = deepContent.keyTerminology as Array<{ term: string; definition: string }>;
+      courseContext.terminology = terms.map(t => ({
+        term: t.term,
+        definition: t.definition
+      }));
+    }
+
+    // Map numbered framework
+    if (deepContent?.numberedFramework) {
+      const fw = deepContent.numberedFramework as { frameworkName: string; items: unknown[] };
+      courseContext.frameworks = [{
+        name: fw.frameworkName,
+        description: `Framework with ${fw.items?.length || 0} items`
+      }];
+    }
+
+    // Map expert quotes
+    if (deepContent?.expertWisdom) {
+      const quotes = deepContent.expertWisdom as Array<{ quote: string; source: string }>;
+      courseContext.expertQuotes = quotes.map(q => ({
+        quote: q.quote,
+        source: q.source
+      }));
+    }
+
+    // Map input ranges
+    if (deepContent?.inputRanges) {
+      courseContext.inputRanges = deepContent.inputRanges as CourseContext['inputRanges'];
+    }
+  }
+
+  // Build questions from toolSpec inputs if available
+  const questions: Question[] = [];
+  const toolSpec = (job as Job & { toolSpec?: { inputs?: Array<{ name: string; label: string; type?: string; required?: boolean }> } }).toolSpec;
+  if (toolSpec?.inputs) {
+    for (const input of toolSpec.inputs) {
+      questions.push({
+        fieldId: input.name,
+        prompt: input.label,
+        inputType: input.type || 'text',
+        required: input.required !== false
+      });
+    }
+  }
+
+  return {
+    tool_id: toolId,
+    tool_slug: slug,
+    tool_name: toolName,
+    github_url: githubUrl,
+    questions,
+    inputs: questions.map(q => q.fieldId),
+    outputs: ['verdict', 'score'],
+    courseContext
+  };
+}
+
 // ========== GITHUB SERVICE CLASS ==========
 
 /**
@@ -136,8 +228,19 @@ export class GitHubService {
         };
       }
 
-      // Step 3: Trigger MongoDB workflow (US2) - fire-and-forget (optional)
-      let workflowResult: WorkflowTriggerResult = { success: false };
+      // Step 3: Feature 021 - Save defaults to unified tool collection
+      try {
+        const defaultsInput = buildDefaultsFromJob(job, deployResult);
+        await toolCollectionService.saveDefaults(slug, defaultsInput);
+        logOperation('fullDeploy', jobId, true, `defaults saved to tool_${slug}`);
+      } catch (e) {
+        // Log but don't fail deployment - defaults can be created later
+        console.warn(`[GitHub] Failed to save defaults for ${jobId}:`, e);
+        logOperation('fullDeploy', jobId, false, `defaults save failed: ${e}`);
+      }
+
+      // Step 4: Trigger MongoDB workflow (US2) - fire-and-forget (optional, legacy)
+      let workflowResult: WorkflowTriggerResult = { success: false, workflowFile: 'create-tool-collection.yml' };
       try {
         workflowResult = await this.triggerMongoSetup(slug, jobId);
         if (!workflowResult.success) {
@@ -147,7 +250,7 @@ export class GitHubService {
         console.warn(`[GitHub] Workflow trigger error for ${jobId}:`, e);
       }
 
-      // Step 4: Update job with deployment info and status
+      // Step 5: Update job with deployment info and status
       const deployedUrl = deployResult.pagesUrl || deployResult.repoUrl || '';
       updateJob(jobId, {
         status: JobStatus.DEPLOYED,

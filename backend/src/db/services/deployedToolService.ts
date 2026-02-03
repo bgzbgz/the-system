@@ -4,6 +4,11 @@
  *
  * Per contracts/database.yaml operations.deployed_tools
  * Registry operations for deployed tools
+ *
+ * @deprecated Feature 021: Use toolCollectionService instead.
+ * This service used the centralized deployed_tools collection which is no longer used.
+ * Each tool now has its own collection `tool_{slug}` with a defaults document.
+ * See: backend/src/db/services/toolCollectionService.ts
  */
 
 import { Collection, Document, MongoError } from 'mongodb';

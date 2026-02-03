@@ -8,7 +8,7 @@
  * 3. Tool page checks pending access → instant verification
  */
 
-import { getDb, isConnected } from '../../config/database';
+import { getDB, isConnected } from '../../config/database';
 
 export interface PendingAccess {
   _id?: string;
@@ -69,7 +69,7 @@ export async function createPendingAccess(
 
   if (isConnected()) {
     try {
-      const db = getDb();
+      const db = getDB();
       const collection = db.collection('pending_tool_access');
 
       // Upsert - replace any existing pending access for same user+tool
@@ -106,7 +106,7 @@ export async function checkPendingAccess(
 
   if (isConnected()) {
     try {
-      const db = getDb();
+      const db = getDB();
       const collection = db.collection<PendingAccess>('pending_tool_access');
 
       const pending = await collection.findOne({
@@ -150,7 +150,7 @@ export async function cleanupExpiredAccess(): Promise<number> {
 
   if (isConnected()) {
     try {
-      const db = getDb();
+      const db = getDB();
       const collection = db.collection('pending_tool_access');
       const result = await collection.deleteMany({
         expires_at: { $lt: now }
@@ -179,7 +179,7 @@ export async function ensurePendingAccessIndexes(): Promise<void> {
   if (!isConnected()) return;
 
   try {
-    const db = getDb();
+    const db = getDB();
     const collection = db.collection('pending_tool_access');
 
     await collection.createIndexes([

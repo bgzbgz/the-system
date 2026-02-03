@@ -24,7 +24,7 @@
 
 import { Router, Request, Response } from 'express';
 
-import { JobStatus } from '../models/job';
+import { JobStatus, QAFinding } from '../models/job';
 import { ActorType } from '../models/auditLog';
 import { validateBody } from '../middleware/validate';
 import {
@@ -190,7 +190,7 @@ router.post('/callback',
           score: qa_report.score,
           max_score: qa_report.max_score,
           passed: qa_report.passed,
-          findings: qa_report.findings
+          findings: (qa_report.findings || []) as QAFinding[]
         },
         callback_received_at: new Date()
       });

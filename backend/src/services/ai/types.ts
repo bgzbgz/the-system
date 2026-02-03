@@ -21,6 +21,8 @@ export interface AICompletionRequest {
   userPrompt: string;
   /** Maximum tokens in response (default: 4096) */
   maxTokens?: number;
+  /** AI provider to use (default: 'claude') */
+  provider?: AIProviderType;
 }
 
 /**

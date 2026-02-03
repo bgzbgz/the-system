@@ -17,12 +17,16 @@ export const CategoryTypeSchema = z.enum([
 ]);
 
 export const JobStatusSchema = z.enum([
+  'DRAFT',
+  'FAILED_SEND',
   'SENT',
   'PROCESSING',
+  'FACTORY_FAILED',
   'QA_FAILED',
   'ESCALATED',
   'READY_FOR_REVIEW',
   'REVISION_REQUESTED',
+  'DEPLOY_REQUESTED',
   'DEPLOYING',
   'DEPLOYED',
   'DEPLOY_FAILED',
@@ -78,16 +82,8 @@ export type JobSubmissionInput = z.infer<typeof jobSubmissionSchema>;
  */
 export const jobListQuerySchema = z.object({
   status: JobStatusSchema.optional(),
-  limit: z
-    .string()
-    .optional()
-    .transform(val => (val ? parseInt(val, 10) : 50))
-    .pipe(z.number().min(1).max(100)),
-  offset: z
-    .string()
-    .optional()
-    .transform(val => (val ? parseInt(val, 10) : 0))
-    .pipe(z.number().min(0))
+  limit: z.coerce.number().min(1).max(100).default(50),
+  offset: z.coerce.number().min(0).default(0)
 });
 
 export type JobListQuery = z.infer<typeof jobListQuerySchema>;
