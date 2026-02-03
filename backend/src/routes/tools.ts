@@ -9,8 +9,7 @@
 import { Router, Request, Response } from 'express';
 import { apiKeyAuthMiddleware } from '../middleware/apiKeyAuth';
 import {
-  validateSlug,
-  isDatabaseAvailable
+  validateSlug
 } from '../services/toolResponses';
 import logger from '../utils/logger';
 
@@ -22,7 +21,7 @@ import {
   generateInputFeedback,
   CourseContext
 } from '../services/toolIntelligence';
-import { getDB, isConnected } from '../config/database';
+import { getDB, isConnected } from '../db/connection';
 import { DeployedTool } from '../db/models/deployedTool';
 
 // Feature 021: Unified tool collection service (replaces deprecated toolResponses for save/get/stats)
@@ -180,7 +179,7 @@ router.get(
 
     try {
       // Check database availability
-      if (!isDatabaseAvailable()) {
+      if (!isConnected()) {
         return res.status(503).json({
           success: false,
           error: 'Service temporarily unavailable',
@@ -265,7 +264,7 @@ router.get(
 
     try {
       // Check database availability
-      if (!isDatabaseAvailable()) {
+      if (!isConnected()) {
         return res.status(503).json({
           success: false,
           error: 'Service temporarily unavailable',
@@ -384,7 +383,7 @@ router.post(
 
     try {
       // Check database availability
-      if (!isDatabaseAvailable()) {
+      if (!isConnected()) {
         return res.status(503).json({
           success: false,
           status: 'unavailable',
@@ -487,7 +486,7 @@ router.get(
     const { responseId } = req.params;
 
     try {
-      if (!isDatabaseAvailable()) {
+      if (!isConnected()) {
         return res.status(503).json({
           success: false,
           error: 'Service temporarily unavailable'
@@ -540,7 +539,7 @@ router.post(
     const { slug } = req.params;
 
     try {
-      if (!isDatabaseAvailable()) {
+      if (!isConnected()) {
         return res.status(503).json({
           success: false,
           error: 'Service temporarily unavailable'
@@ -599,7 +598,7 @@ router.get(
     const { slug } = req.params;
 
     try {
-      if (!isDatabaseAvailable()) {
+      if (!isConnected()) {
         return res.status(503).json({
           success: false,
           error: 'Service temporarily unavailable'
@@ -645,7 +644,7 @@ router.get(
     const { slug } = req.params;
 
     try {
-      if (!isDatabaseAvailable()) {
+      if (!isConnected()) {
         return res.status(503).json({
           success: false,
           error: 'Service temporarily unavailable'
@@ -718,7 +717,7 @@ router.put(
     const { slug } = req.params;
 
     try {
-      if (!isDatabaseAvailable()) {
+      if (!isConnected()) {
         return res.status(503).json({
           success: false,
           error: 'Service temporarily unavailable'

@@ -25,7 +25,12 @@ import principlesRouter from './routes/principles';
 import learnworldsRouter from './routes/learnworlds';
 import toolLaunchRouter from './routes/toolLaunch';
 import toolEmbedRouter from './routes/toolEmbed';
+import toolResponsesRouter from './routes/tools';
 import automationWebhookRouter from './routes/automationWebhook';
+import qualityRouter from './routes/quality';
+import patternsRouter from './routes/patterns';
+import suggestionsRouter from './routes/suggestions';
+import experimentsRouter from './routes/experiments';
 import configGuard from './middleware/configGuard';
 import corsMiddleware from './middleware/cors';
 import { requestLogger, lightRequestLogger } from './middleware/requestLogger';
@@ -124,11 +129,26 @@ app.use('/api/learnworlds', learnworldsRouter);
 // Tool Launch routes - secure tool access from LearnWorlds
 app.use('/api/tools', toolLaunchRouter);
 
+// Tool Responses routes - save/retrieve tool responses (spec 026-tool-response-api, feature 021)
+app.use('/api/tools', toolResponsesRouter);
+
 // Tool Embed routes - embeddable widgets for LearnWorlds courses
 app.use('/api/embed', toolEmbedRouter);
 
 // Automation webhook routes - receives LearnWorlds automation webhooks
 app.use('/api/automation', automationWebhookRouter);
+
+// Quality routes - quality scoring and prompt version management (spec 020-self-improving-factory)
+app.use('/api/quality', qualityRouter);
+
+// Pattern routes - pattern detection and weekly reports (spec 020-self-improving-factory)
+app.use('/api/patterns', patternsRouter);
+
+// Suggestion routes - improvement suggestions queue (spec 020-self-improving-factory)
+app.use('/api/suggestions', suggestionsRouter);
+
+// Experiments routes - A/B testing management (spec 020-self-improving-factory)
+app.use('/api/experiments', experimentsRouter);
 
 // Root endpoint - always available
 app.get('/', (req, res) => {
