@@ -21,7 +21,7 @@ import {
   FactoryCallbackRequest
 } from '../services/callback';
 import callbackAuthMiddleware, { AuthenticatedRequest } from '../middleware/callbackAuth';
-import { getJob, updateJob } from '../services/jobStore';
+import { jobService, jobArtifactService } from '../db/supabase';
 
 // ========== ROUTER ==========
 
@@ -88,7 +88,7 @@ router.post('/callback', callbackAuthMiddleware, async (req: AuthenticatedReques
   };
 
   // Step 3: Job Lookup from jobStore
-  const job = getJob(payload.job_id);
+  const job = await jobService.getJob(payload.job_id);
 
   if (!job) {
     // Log job not found
@@ -113,11 +113,15 @@ router.post('/callback', callbackAuthMiddleware, async (req: AuthenticatedReques
     // Decode the revised tool HTML
     const revisedHtml = payload.tool_html_base64
       ? Buffer.from(payload.tool_html_base64, 'base64').toString('utf-8')
-      : job.tool_html;
+      : undefined;
 
-    // Update job with revised tool
-    const updatedJob = updateJob(payload.job_id, {
-      tool_html: revisedHtml,
+    // Save tool HTML as artifact if provided
+    if (revisedHtml) {
+      await jobArtifactService.saveToolHtml(payload.job_id, revisedHtml);
+    }
+
+    // Update job with revised tool metadata (without tool_html)
+    const updatedJob = await jobService.updateJob(payload.job_id, {
       status: JobStatus.READY_FOR_REVIEW,
       revision_applied: payload.revision_applied,
       revision_count: payload.revision_count || (job.revision_count || 0) + 1,
@@ -190,8 +194,14 @@ router.post('/callback', callbackAuthMiddleware, async (req: AuthenticatedReques
 
   const updatedJob = processResult.job;
 
-  // Save to jobStore
-  updateJob(payload.job_id, updatedJob);
+  // Save tool_html as artifact if present
+  if (updatedJob.tool_html) {
+    await jobArtifactService.saveToolHtml(payload.job_id, updatedJob.tool_html);
+  }
+
+  // Save to jobStore (without tool_html)
+  const { tool_html, ...jobWithoutHtml } = updatedJob;
+  await jobService.updateJob(payload.job_id, jobWithoutHtml);
 
   // Log success
   logCallbackAttempt(

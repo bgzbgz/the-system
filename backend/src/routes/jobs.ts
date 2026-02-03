@@ -35,7 +35,7 @@ import {
 import { validateBody, validateQuery } from '../middleware/validate';
 import { jobSubmissionSchema, jobListQuerySchema, rejectJobSchema } from '../schemas/job';
 import { revisionRequestSchema } from '../schemas/revision';
-import { saveJob, getJob, getAllJobs, getInboxJobs, updateJob, getJobDetail } from '../services/jobStore';
+import { jobService, jobArtifactService } from '../db/supabase';
 import { transitionJob, createInitialAuditEntry, ActorType, canTransition } from '../services/stateMachine';
 import { generateUniqueSlug, slugFromFileName } from '../utils/slug';
 import logger from '../utils/logger';
@@ -69,7 +69,7 @@ const router = Router();
  */
 router.get('/inbox', async (req: Request, res: Response) => {
   try {
-    const inboxJobs = getInboxJobs();
+    const inboxJobs = await jobService.getInboxJobs();
     logger.info('Inbox request', { count: inboxJobs.length });
     res.json(inboxJobs);
   } catch (error) {
@@ -111,7 +111,7 @@ router.post('/',
       await createInitialAuditEntry(jobId);
 
       // Save job to store FIRST (before async processing)
-      saveJob(job);
+      await jobService.createJob(job);
 
       logger.logOperation({
         operation: 'JOB_CREATED',
@@ -156,9 +156,12 @@ router.post('/',
 
         // Save the generated HTML and update status based on result
         if (result.success && result.toolHtml) {
-          updateJob(jobId, {
+          // Save HTML to artifacts table
+          await jobArtifactService.saveToolHtml(jobId, result.toolHtml);
+
+          // Update job metadata (without tool_html)
+          await jobService.updateJob(jobId, {
             status: JobStatus.READY_FOR_REVIEW,
-            tool_html: result.toolHtml,
             tool_name: result.toolSpec?.name || input.file_name.replace(/\.[^/.]+$/, ''),
             qa_report: result.qaResult ? {
               passed: result.qaResult.passed,
@@ -175,9 +178,12 @@ router.post('/',
           });
         } else if (!result.success) {
           // Mark as QA failed - but still save the tool_html so users can preview it
-          updateJob(jobId, {
+          if (result.toolHtml) {
+            await jobArtifactService.saveToolHtml(jobId, result.toolHtml);
+          }
+
+          await jobService.updateJob(jobId, {
             status: JobStatus.QA_FAILED,
-            tool_html: result.toolHtml || undefined, // Save HTML even on failure for preview
             tool_name: result.toolSpec?.name || input.file_name.replace(/\.[^/.]+$/, ''),
             qa_report: result.qaResult ? {
               passed: result.qaResult.passed,
@@ -188,9 +194,9 @@ router.post('/',
             workflow_error: result.error?.message || 'Factory processing failed'
           });
         }
-      }).catch(err => {
+      }).catch(async (err) => {
         logger.logError('Factory processing failed', err as Error, { job_id: jobId });
-        updateJob(jobId, {
+        await jobService.updateJob(jobId, {
           status: JobStatus.QA_FAILED,
           workflow_error: (err as Error).message
         });
@@ -228,7 +234,7 @@ router.post('/:jobId/retry', async (req: Request, res: Response) => {
   const { jobId } = req.params;
 
   try {
-    const job = getJob(jobId);
+    const job = await jobService.getJob(jobId);
 
     if (!job) {
       return sendNotFound(res, 'Job not found');
@@ -267,7 +273,7 @@ router.post('/:jobId/retry', async (req: Request, res: Response) => {
       const userRequest = buildUserRequestFromJob(job);
 
       // Update job status
-      updateJob(jobId, {
+      await jobService.updateJob(jobId, {
         status: JobStatus.PROCESSING,
         workflow_error: undefined
       });
@@ -296,7 +302,7 @@ router.post('/:jobId/retry', async (req: Request, res: Response) => {
 
     } else {
       // Deploy retry: redeploy to GitHub
-      updateJob(jobId, { status: JobStatus.DEPLOYING });
+      await jobService.updateJob(jobId, { status: JobStatus.DEPLOYING });
 
       // Fire-and-forget deployment
       githubService.fullDeploy(jobId).catch(err => {
@@ -332,7 +338,8 @@ router.get('/:jobId', async (req: Request, res: Response) => {
   const { jobId } = req.params;
 
   try {
-    const job = getJobDetail(jobId);
+    // Get job with HTML from artifacts table
+    const job = await jobService.getJobWithHtml(jobId);
 
     if (!job) {
       return sendNotFound(res, 'Job not found');
@@ -358,7 +365,7 @@ router.get('/:jobId/logs', async (req: Request, res: Response) => {
 
   try {
     // Verify job exists
-    const job = getJob(jobId);
+    const job = await jobService.getJob(jobId);
     if (!job) {
       return sendNotFound(res, 'Job not found');
     }
@@ -394,23 +401,15 @@ router.get('/',
       const query = (req as any).validatedQuery || { limit: 50, offset: 0 };
       const { status, limit, offset } = query;
 
-      // Get all jobs and apply filter
-      let jobs = getAllJobs();
-
-      if (status) {
-        jobs = jobs.filter(job => job.status === status);
-      }
-
-      // Sort by created_at descending
-      jobs.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
-
-      const total = jobs.length;
-
-      // Apply pagination
-      const paginatedJobs = jobs.slice(offset, offset + limit);
+      // Get jobs from Supabase with filtering and pagination
+      const { jobs, total } = await jobService.listJobs({
+        status,
+        limit,
+        offset
+      });
 
       // Convert to list items (excludes tool_html)
-      const items = paginatedJobs.map(job => jobToListItem(job));
+      const items = jobs.map(job => jobToListItem(job));
 
       logger.info('Job list request', {
         status: status || 'all',
@@ -449,7 +448,7 @@ router.post('/:jobId/approve', async (req: Request, res: Response) => {
       });
     }
 
-    const job = getJob(jobId);
+    const job = await jobService.getJob(jobId);
 
     if (!job) {
       return sendNotFound(res, 'Job not found');
@@ -473,7 +472,7 @@ router.post('/:jobId/approve', async (req: Request, res: Response) => {
     }
 
     // Update job in store
-    updateJob(jobId, { status: JobStatus.DEPLOYING });
+    await jobService.updateJob(jobId, { status: JobStatus.DEPLOYING });
 
     logger.logOperation({
       operation: 'DEPLOY_STARTED',
@@ -506,7 +505,7 @@ router.post('/:jobId/approve', async (req: Request, res: Response) => {
     }
 
     // Get the updated job with deployed_url
-    const updatedJob = getJob(jobId);
+    const updatedJob = await jobService.getJob(jobId);
 
     sendSuccess(res, {
       success: true,
@@ -537,7 +536,7 @@ router.post('/:jobId/reject',
     const { reason } = req.body;
 
     try {
-      const job = getJob(jobId);
+      const job = await jobService.getJob(jobId);
 
       if (!job) {
         return sendNotFound(res, 'Job not found');
@@ -561,7 +560,7 @@ router.post('/:jobId/reject',
       }
 
       // Update job in store
-      updateJob(jobId, { status: JobStatus.REJECTED });
+      await jobService.updateJob(jobId, { status: JobStatus.REJECTED });
 
       logger.logOperation({
         operation: 'BOSS_REJECTED',
@@ -609,7 +608,7 @@ router.post('/:jobId/revise',
         });
       }
 
-      const job = getJob(jobId);
+      const job = await jobService.getJob(jobId);
 
       if (!job) {
         return sendNotFound(res, 'Job not found');
@@ -634,7 +633,7 @@ router.post('/:jobId/revise',
       }
 
       // Update job in store with revision notes and new status
-      updateJob(jobId, {
+      await jobService.updateJob(jobId, {
         status: JobStatus.PROCESSING,
         revision_notes
       });
@@ -670,9 +669,12 @@ router.post('/:jobId/revise',
 
         // Save the generated HTML and update status based on result
         if (factoryResult.success && factoryResult.toolHtml) {
-          updateJob(jobId, {
+          // Save HTML to artifacts table
+          await jobArtifactService.saveToolHtml(jobId, factoryResult.toolHtml);
+
+          // Update job metadata (without tool_html)
+          await jobService.updateJob(jobId, {
             status: JobStatus.READY_FOR_REVIEW,
-            tool_html: factoryResult.toolHtml,
             tool_name: factoryResult.toolSpec?.name || job.file_name?.replace(/\.[^/.]+$/, ''),
             qa_report: factoryResult.qaResult ? {
               passed: factoryResult.qaResult.passed,
@@ -689,9 +691,12 @@ router.post('/:jobId/revise',
           });
         } else if (!factoryResult.success) {
           // Mark as QA failed - but still save the tool_html so users can preview it
-          updateJob(jobId, {
+          if (factoryResult.toolHtml) {
+            await jobArtifactService.saveToolHtml(jobId, factoryResult.toolHtml);
+          }
+
+          await jobService.updateJob(jobId, {
             status: JobStatus.QA_FAILED,
-            tool_html: factoryResult.toolHtml || undefined,
             tool_name: factoryResult.toolSpec?.name || job.file_name?.replace(/\.[^/.]+$/, ''),
             qa_report: factoryResult.qaResult ? {
               passed: factoryResult.qaResult.passed,
@@ -702,9 +707,9 @@ router.post('/:jobId/revise',
             workflow_error: factoryResult.error?.message || 'Revision processing failed'
           });
         }
-      }).catch(err => {
+      }).catch(async (err) => {
         logger.logError('Revision processing failed', err as Error, { job_id: jobId });
-        updateJob(jobId, {
+        await jobService.updateJob(jobId, {
           status: JobStatus.QA_FAILED,
           workflow_error: (err as Error).message
         });
@@ -719,7 +724,7 @@ router.post('/:jobId/revise',
       });
 
       // Return the job in the expected format for frontend
-      const updatedJob = getJob(jobId);
+      const updatedJob = await jobService.getJob(jobId);
       sendSuccess(res, jobToDetail(updatedJob!));
 
     } catch (error) {
@@ -749,7 +754,7 @@ router.post('/:jobId/request-revision',
         });
       }
 
-      const job = getJob(jobId);
+      const job = await jobService.getJob(jobId);
 
       if (!job) {
         return sendNotFound(res, 'Job not found');
@@ -770,7 +775,7 @@ router.post('/:jobId/request-revision',
         return sendInvalidTransition(res, result.error || 'Transition failed');
       }
 
-      updateJob(jobId, {
+      await jobService.updateJob(jobId, {
         status: JobStatus.PROCESSING,
         revision_notes
       });
@@ -782,11 +787,56 @@ router.post('/:jobId/request-revision',
       });
 
       // Return the job in the expected format for frontend
-      const updatedJob = getJob(jobId);
+      const updatedJob = await jobService.getJob(jobId);
       sendSuccess(res, jobToDetail(updatedJob!));
 
     } catch (error) {
       logger.logError('Error requesting revision (legacy)', error as Error, { job_id: jobId });
+      sendInternalError(res);
+    }
+  }
+);
+
+// ========== ADMIN ENDPOINT (TEMPORARY FOR DEMO) ==========
+
+/**
+ * PATCH /api/jobs/:jobId/admin-patch
+ * Directly update job fields (for demo/testing only)
+ */
+router.patch('/:jobId/admin-patch',
+  async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const updates = req.body;
+
+      const job = await jobService.getJob(jobId);
+      if (!job) {
+        return sendNotFound(res, 'Job not found');
+      }
+
+      // Extract tool_html if present
+      const { tool_html, ...jobUpdates } = updates;
+
+      // Save tool_html to artifacts if provided
+      if (tool_html !== undefined) {
+        await jobArtifactService.saveToolHtml(jobId, tool_html);
+      }
+
+      // Allow direct updates for demo purposes
+      await jobService.updateJob(jobId, {
+        ...jobUpdates,
+        updated_at: new Date()
+      });
+
+      console.log(`[Admin] Patched job ${jobId}:`, Object.keys(updates));
+
+      sendSuccess(res, {
+        success: true,
+        job_id: jobId,
+        updated_fields: Object.keys(updates)
+      });
+    } catch (error) {
+      logger.logError('Error in admin patch', error as Error);
       sendInternalError(res);
     }
   }

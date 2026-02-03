@@ -26,6 +26,8 @@ import { exampleGeneratorPrompt } from './exampleGenerator';
 import { copyWriterPrompt } from './copyWriter';
 import { brandGuardianPrompt } from './brandGuardian';
 import { edgeCaseTesterPrompt } from './edgeCaseTester';
+// Tool Intelligence agent (018-tool-intelligence)
+import { toolAnalysisPrompt } from './toolAnalysis';
 
 // Import types for record
 import { AgentName, AgentPrompt } from './types';
@@ -50,7 +52,9 @@ export const prompts: Record<AgentName, AgentPrompt> = {
   // Quality enhancement agents
   copyWriter: copyWriterPrompt,
   brandGuardian: brandGuardianPrompt,
-  edgeCaseTester: edgeCaseTesterPrompt
+  edgeCaseTester: edgeCaseTesterPrompt,
+  // Tool Intelligence agent (018-tool-intelligence)
+  toolAnalysis: toolAnalysisPrompt
 };
 
 /**
@@ -100,5 +104,7 @@ export {
   // Quality enhancement agents
   copyWriterPrompt,
   brandGuardianPrompt,
-  edgeCaseTesterPrompt
+  edgeCaseTesterPrompt,
+  // Tool Intelligence agent (018-tool-intelligence)
+  toolAnalysisPrompt
 };

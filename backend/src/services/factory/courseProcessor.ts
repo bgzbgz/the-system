@@ -15,8 +15,16 @@ import { AIService } from '../ai';
 import { contentSummarizerPrompt } from '../../prompts/contentSummarizer';
 import { courseAnalystPrompt } from '../../prompts/courseAnalyst';
 import { knowledgeArchitectPrompt } from '../../prompts/knowledgeArchitect';
-import { ToolSpec } from '../../prompts/types';
+import { ToolSpec, Phase, BranchCondition, BranchOperator, BranchAction } from '../../prompts/types';
 import logger from '../../utils/logger';
+import {
+  validateExtraction,
+  validateDesignAlignment,
+  buildBuilderContext,
+  formatValidationResult,
+  validatePhases
+} from './validation';
+import { ValidationResult, BuilderContext } from './types';
 
 export interface CourseAnalysis {
   moduleTitle: string;
@@ -50,6 +58,59 @@ export interface CourseAnalysis {
     toolPurpose: string;
     valueProposition: string;
   };
+  // Deep content extraction for richer tools
+  deepContent?: {
+    keyTerminology?: Array<{
+      term: string;
+      definition: string;
+      howToUseInTool: string;
+    }>;
+    // Numbered frameworks like "7 Levers", "5 Steps", etc.
+    numberedFramework?: {
+      frameworkName: string;
+      items: Array<{
+        number: number;
+        name: string;
+        fullLabel: string;
+        definition: string;
+        toolInputLabel: string;
+      }>;
+    };
+    reflectionQuestions?: Array<{
+      question: string;
+      section: string;
+      toolInputOpportunity: string;
+    }>;
+    expertWisdom?: Array<{
+      quote: string;
+      source: string;
+      principle: string;
+    }>;
+    bookReferences?: Array<{
+      title: string;
+      author: string;
+      keyTakeaway: string;
+    }>;
+    sprintChecklist?: Array<{
+      item: string;
+      validationType: string;
+      toolValidation: string;
+    }>;
+    conceptsToLearn?: string[];
+    decisionsToMake?: string[];
+    processesToImplement?: string[];
+    capabilitiesToDevelop?: string[];
+    // Input ranges for AI coaching feedback (018-tool-intelligence)
+    inputRanges?: Array<{
+      fieldId: string;
+      fieldLabel: string;
+      inferredMin?: number;
+      inferredMax?: number;
+      recommendedValue?: number;
+      sourceQuote?: string;
+      confidence: 'high' | 'medium' | 'low';
+    }>;
+  };
 }
 
 export interface ToolDesign {
@@ -66,6 +127,8 @@ export interface ToolDesign {
     helpText?: string;
     required: boolean;
     courseReference?: string;
+    courseTerminology?: string;
+    reflectionQuestionBasis?: string;
     options?: string[];
   }>;
   processing: {
@@ -95,6 +158,60 @@ export interface ToolDesign {
     toolDelivery: string;
     knowledgeReinforcement: string;
   };
+  // Deep content integration for richer tools
+  deepContentIntegration?: {
+    terminologyUsed?: string[];
+    expertQuoteToDisplay?: {
+      quote: string;
+      source: string;
+      displayLocation: string;
+    };
+    sprintChecklistValidation?: Array<{
+      checklistItem: string;
+      howToolValidates: string;
+    }>;
+    frameworkVisualization?: string;
+    reflectionQuestionsAnswered?: string[];
+  };
+  // Multi-phase wizard design (019-multistep-wizard-tools)
+  phases?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    order: number;
+    inputIds: string[];
+    summaryTemplate: string;
+    teachingMomentTag?: string;
+    branchConditions?: Array<{
+      sourceField: string;
+      operator: string;
+      targetValue: string | number;
+      action: 'show' | 'hide';
+      targetPhase?: string;
+      targetInput?: string;
+    }>;
+  }>;
+  defaultPhasePath?: string[];
+}
+
+/**
+ * Extraction metrics for validation and debugging
+ */
+export interface ExtractionMetadata {
+  /** Number of framework items extracted (e.g., 7 for "7 Levers") */
+  frameworkItemCount: number;
+  /** Name of the framework if found */
+  frameworkName: string | null;
+  /** Number of unique terminology items extracted */
+  terminologyCount: number;
+  /** Number of expert quotes extracted */
+  quoteCount: number;
+  /** Number of reflection questions extracted */
+  reflectionQuestionCount: number;
+  /** Number of sprint checklist items extracted */
+  checklistItemCount: number;
+  /** Whether extraction passed validation */
+  validationPassed: boolean;
 }
 
 export interface CourseProcessorResult {
@@ -103,6 +220,11 @@ export interface CourseProcessorResult {
   courseAnalysis?: CourseAnalysis;
   toolDesign?: ToolDesign;
   toolSpec?: ToolSpec;
+  builderContext?: BuilderContext;
+  extractionValidation?: ValidationResult;
+  designValidation?: ValidationResult;
+  /** Extraction metrics for tracking and debugging */
+  extractionMetadata?: ExtractionMetadata;
   error?: string;
   timing?: {
     summarize: number;
@@ -178,6 +300,51 @@ export class CourseProcessor {
         jobId: this.jobId
       });
 
+      // Step 2.5: Build extraction metadata for tracking
+      const deepContent = analysis.deepContent;
+      const extractionMetadata: ExtractionMetadata = {
+        frameworkItemCount: deepContent?.numberedFramework?.items?.length || 0,
+        frameworkName: deepContent?.numberedFramework?.frameworkName || null,
+        terminologyCount: deepContent?.keyTerminology?.length || 0,
+        quoteCount: deepContent?.expertWisdom?.length || 0,
+        reflectionQuestionCount: deepContent?.reflectionQuestions?.length || 0,
+        checklistItemCount: deepContent?.sprintChecklist?.length || 0,
+        validationPassed: false // Will be updated after validation
+      };
+
+      logger.info('[CourseProcessor] Extraction metadata', {
+        ...extractionMetadata,
+        jobId: this.jobId
+      });
+
+      // Step 2.6: Validate extraction
+      const extractionValidation = validateExtraction(analysis);
+      extractionMetadata.validationPassed = extractionValidation.passed;
+
+      logger.info('[CourseProcessor] Extraction validation', {
+        passed: extractionValidation.passed,
+        errors: extractionValidation.errors.length,
+        warnings: extractionValidation.warnings.length,
+        jobId: this.jobId
+      });
+
+      if (!extractionValidation.passed) {
+        const errorMessages = extractionValidation.errors.map(e => e.message).join('; ');
+        logger.error('[CourseProcessor] Extraction validation failed', {
+          errors: extractionValidation.errors,
+          extractionMetadata,
+          jobId: this.jobId
+        });
+        return {
+          success: false,
+          summarizedContent: processableContent,
+          courseAnalysis: analysis,
+          extractionValidation,
+          extractionMetadata,
+          error: `Extraction validation failed: ${errorMessages}`
+        };
+      }
+
       // Step 3: Design the tool
       const designStart = Date.now();
       const design = await this.designTool(analysis, processableContent);
@@ -198,8 +365,63 @@ export class CourseProcessor {
         jobId: this.jobId
       });
 
+      // Step 3.5: Validate design alignment
+      const designValidation = validateDesignAlignment(analysis, design);
+      logger.info('[CourseProcessor] Design validation', {
+        passed: designValidation.passed,
+        errors: designValidation.errors.length,
+        warnings: designValidation.warnings.length,
+        jobId: this.jobId
+      });
+
+      if (!designValidation.passed) {
+        const errorMessages = designValidation.errors.map(e => e.message).join('; ');
+        logger.error('[CourseProcessor] Design validation failed', {
+          errors: designValidation.errors,
+          extractionMetadata,
+          jobId: this.jobId
+        });
+        return {
+          success: false,
+          summarizedContent: processableContent,
+          courseAnalysis: analysis,
+          toolDesign: design,
+          extractionValidation,
+          extractionMetadata,
+          designValidation,
+          error: `Design validation failed: ${errorMessages}`
+        };
+      }
+
+      // Step 3.6: Build structured context for Tool Builder
+      const builderContext = buildBuilderContext(analysis, design);
+      logger.info('[CourseProcessor] BuilderContext created', {
+        frameworkItems: builderContext.frameworkItems.length,
+        terminology: builderContext.terminology.length,
+        hasQuote: !!builderContext.expertQuote,
+        jobId: this.jobId
+      });
+
       // Step 4: Convert to ToolSpec for existing pipeline
       const toolSpec = this.convertToToolSpec(design, analysis);
+
+      // Attach builderContext to toolSpec
+      (toolSpec as ToolSpec & { _builderContext?: BuilderContext })._builderContext = builderContext;
+
+      // Step 4.5: Validate phases if present (019-multistep-wizard-tools)
+      if (toolSpec.phases && toolSpec.phases.length > 0) {
+        const allInputIds = (design.inputs || []).map(i => i.name);
+        const phaseValidation = validatePhases(toolSpec.phases, allInputIds);
+
+        if (!phaseValidation.valid) {
+          logger.warn('[CourseProcessor] Phase validation issues (non-blocking)', {
+            issues: phaseValidation.issues,
+            jobId: this.jobId
+          });
+          // Phase validation is a warning, not a blocker
+          // Tool will still generate but may have suboptimal phase structure
+        }
+      }
 
       timing.total = Date.now() - startTime;
 
@@ -209,6 +431,10 @@ export class CourseProcessor {
         courseAnalysis: analysis,
         toolDesign: design,
         toolSpec,
+        builderContext,
+        extractionValidation,
+        extractionMetadata,
+        designValidation,
         timing
       };
 
@@ -231,10 +457,16 @@ export class CourseProcessor {
         return await this.chunkAndSummarize(content);
       }
 
-      const response = await this.aiService.complete({
+      const response = await this.aiService.completeWithFallback({
         systemPrompt: contentSummarizerPrompt.systemPrompt,
         userPrompt: content,
         maxTokens: MAX_TOKENS_SUMMARIZER
+      }, 'courseProcessor');
+
+      logger.info('[CourseProcessor] Summarization complete', {
+        jobId: this.jobId,
+        cost: response.estimatedCostUsd.toFixed(6),
+        usedFallback: response.usedFallback
       });
 
       return response.content;
@@ -255,11 +487,11 @@ export class CourseProcessor {
     for (const section of sections) {
       if (section.trim().length < 100) continue; // Skip tiny sections
 
-      const summary = await this.aiService.complete({
+      const summary = await this.aiService.completeWithFallback({
         systemPrompt: `Extract ONLY the actionable content from this section. Preserve formulas, steps, criteria exactly. Remove fluff. Output under 1000 chars.`,
         userPrompt: section.substring(0, 15000), // Cap each chunk
         maxTokens: 1024
-      });
+      }, 'courseProcessor');
 
       if (summary.content) {
         summaries.push(summary.content);
@@ -274,10 +506,16 @@ export class CourseProcessor {
    */
   private async analyzeCourse(content: string): Promise<CourseAnalysis | null> {
     try {
-      const response = await this.aiService.complete({
+      const response = await this.aiService.completeWithFallback({
         systemPrompt: courseAnalystPrompt.systemPrompt,
         userPrompt: content,
         maxTokens: MAX_TOKENS_ANALYST
+      }, 'courseProcessor');
+
+      logger.info('[CourseProcessor] Analysis complete', {
+        jobId: this.jobId,
+        cost: response.estimatedCostUsd.toFixed(6),
+        usedFallback: response.usedFallback
       });
 
       // Parse JSON response
@@ -309,10 +547,16 @@ ${originalContent.substring(0, 3000)}
 Design a tool that helps students APPLY the knowledge from this course to their real business situation.
 `;
 
-      const response = await this.aiService.complete({
+      const response = await this.aiService.completeWithFallback({
         systemPrompt: knowledgeArchitectPrompt.systemPrompt,
         userPrompt: userMessage,
         maxTokens: MAX_TOKENS_ARCHITECT
+      }, 'courseProcessor');
+
+      logger.info('[CourseProcessor] Design complete', {
+        jobId: this.jobId,
+        cost: response.estimatedCostUsd.toFixed(6),
+        usedFallback: response.usedFallback
       });
 
       // Parse JSON response
@@ -333,12 +577,61 @@ Design a tool that helps students APPLY the knowledge from this course to their 
    * Convert ToolDesign to ToolSpec for existing pipeline
    */
   private convertToToolSpec(design: ToolDesign, analysis: CourseAnalysis): ToolSpec {
-    // Safely extract nested properties with fallbacks
-    const decision = design.output?.decision || {};
-    const nextAction = design.output?.nextAction || {};
-    const primaryResult = design.output?.primaryResult || {};
-    const courseAlignment = design.courseAlignment || {};
-    const processing = design.processing || {};
+    // Safely extract nested properties with fallbacks using optional chaining
+    const decision = design.output?.decision;
+    const nextAction = design.output?.nextAction;
+    const primaryResult = design.output?.primaryResult;
+    const courseAlignment = design.courseAlignment;
+    const processing = design.processing;
+    const deepContent = analysis.deepContent;
+
+    // Build terminology string for processing logic
+    const terminologyContext = deepContent?.keyTerminology?.length
+      ? `\nKEY TERMINOLOGY TO USE:\n${deepContent.keyTerminology.map(t => `- ${t.term}: ${t.definition}`).join('\n')}`
+      : '';
+
+    // Build numbered framework context (e.g., "7 Levers")
+    const numberedFrameworkContext = deepContent?.numberedFramework
+      ? `\nNUMBERED FRAMEWORK - ${deepContent.numberedFramework.frameworkName}:\n${deepContent.numberedFramework.items.map(item => `- ${item.fullLabel} → Tool input: "${item.toolInputLabel}"`).join('\n')}`
+      : '';
+
+    // Build expert quotes for results
+    const expertQuotesContext = deepContent?.expertWisdom?.length
+      ? `\nEXPERT QUOTES TO DISPLAY:\n${deepContent.expertWisdom.map(e => `"${e.quote}" — ${e.source}`).join('\n')}`
+      : '';
+
+    // Build sprint checklist for validation
+    const checklistContext = deepContent?.sprintChecklist?.length
+      ? `\nSPRINT CHECKLIST VALIDATION:\n${deepContent.sprintChecklist.map(c => `- ${c.item}`).join('\n')}`
+      : '';
+
+    // Convert phases if present (019-multistep-wizard-tools)
+    const phases: Phase[] | undefined = design.phases?.map(phase => ({
+      id: phase.id,
+      name: phase.name,
+      description: phase.description,
+      order: phase.order,
+      // Map inputIds to actual ToolInput objects
+      inputs: (design.inputs || [])
+        .filter(input => phase.inputIds.includes(input.name))
+        .map(input => ({
+          name: input.name,
+          type: input.type as 'text' | 'number' | 'select' | 'textarea',
+          label: input.label,
+          required: input.required,
+          ...(input.options && { options: input.options })
+        })),
+      summaryTemplate: phase.summaryTemplate,
+      teachingMomentTag: phase.teachingMomentTag,
+      branchConditions: phase.branchConditions?.map(cond => ({
+        sourceField: cond.sourceField,
+        operator: cond.operator as BranchOperator,
+        targetValue: cond.targetValue,
+        action: cond.action as BranchAction,
+        targetPhase: cond.targetPhase,
+        targetInput: cond.targetInput
+      }))
+    }));
 
     return {
       name: design.toolDesign?.name || 'Decision Tool',
@@ -352,33 +645,56 @@ Design a tool that helps students APPLY the knowledge from this course to their 
         ...(input.placeholder && { placeholder: input.placeholder })
       })),
       outputType: 'text' as const,
+      // Multi-phase wizard support (019-multistep-wizard-tools)
+      phases,
+      defaultPhasePath: design.defaultPhasePath,
       processingLogic: `
-COURSE CORRELATION: ${courseAlignment.moduleObjective || analysis.learningObjective || 'Apply course knowledge'}
+COURSE CORRELATION: ${courseAlignment?.moduleObjective || analysis.learningObjective || 'Apply course knowledge'}
+MODULE: ${analysis.moduleTitle}
+${terminologyContext}
+${numberedFrameworkContext}
 
 PROCESSING LOGIC:
-${processing.logic || 'Analyze inputs and provide decision'}
+${processing?.logic || 'Analyze inputs and provide decision'}
 
-${processing.formula ? `FORMULA: ${processing.formula}` : ''}
+${processing?.formula ? `FORMULA: ${processing.formula}` : ''}
 
 DECISION CRITERIA:
-- GO when: ${decision.goThreshold || decision.criteria || analysis.decisionCriteria?.goCondition || 'Criteria met'}
-- NO-GO when: ${decision.noGoThreshold || analysis.decisionCriteria?.noGoCondition || 'Criteria not met'}
+- GO when: ${decision?.goThreshold || decision?.criteria || analysis.decisionCriteria?.goCondition || 'Criteria met'}
+- NO-GO when: ${decision?.noGoThreshold || analysis.decisionCriteria?.noGoCondition || 'Criteria not met'}
 
 NEXT ACTIONS:
-- If GO: ${nextAction.onGo || 'Proceed with implementation'}
-- If NO-GO: ${nextAction.onNoGo || 'Revisit and reassess'}
+- If GO: ${nextAction?.onGo || 'Proceed with implementation'}
+- If NO-GO: ${nextAction?.onNoGo || 'Revisit and reassess'}
 
 RESULT INTERPRETATION:
-${primaryResult.interpretation || 'Use the result to guide your decision'}
+${primaryResult?.interpretation || 'Use the result to guide your decision'}
+${expertQuotesContext}
+${checklistContext}
 `,
-      // Store extra context for tool builder
+      // Store extra context for tool builder - including DEEP content
       _courseContext: {
         moduleTitle: analysis.moduleTitle,
         learningObjective: analysis.learningObjective,
         framework: analysis.framework,
         formulas: analysis.formulas,
         decisionCriteria: analysis.decisionCriteria,
-        courseAlignment: design.courseAlignment
+        courseAlignment: design.courseAlignment,
+        // NEW: Deep content for richer tools
+        deepContent: {
+          keyTerminology: deepContent?.keyTerminology || [],
+          numberedFramework: deepContent?.numberedFramework || null,
+          reflectionQuestions: deepContent?.reflectionQuestions || [],
+          expertWisdom: deepContent?.expertWisdom || [],
+          bookReferences: deepContent?.bookReferences || [],
+          sprintChecklist: deepContent?.sprintChecklist || [],
+          conceptsToLearn: deepContent?.conceptsToLearn || [],
+          decisionsToMake: deepContent?.decisionsToMake || [],
+          processesToImplement: deepContent?.processesToImplement || [],
+          capabilitiesToDevelop: deepContent?.capabilitiesToDevelop || [],
+          // Input ranges for AI coaching feedback (018-tool-intelligence)
+          inputRanges: deepContent?.inputRanges || []
+        }
       }
     };
   }

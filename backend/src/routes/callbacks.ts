@@ -33,7 +33,7 @@ import {
   FactoryCallbackInput,
   DeployCallbackInput
 } from '../schemas/callback';
-import { getJob, updateJob } from '../services/jobStore';
+import { jobService, jobArtifactService } from '../db/supabase';
 import { transitionJob, canTransition } from '../services/stateMachine';
 import logger from '../utils/logger';
 import {
@@ -128,7 +128,7 @@ router.post('/callback',
 
     try {
       // Get job
-      const job = getJob(job_id);
+      const job = await jobService.getJob(job_id);
 
       if (!job) {
         logger.warn('Factory callback for unknown job', { job_id });
@@ -179,12 +179,16 @@ router.post('/callback',
         return sendInvalidTransition(res, result.error || 'Transition failed');
       }
 
-      // Update job with tool data
-      updateJob(job_id, {
+      // Save tool_html as artifact
+      if (tool_html) {
+        await jobArtifactService.saveToolHtml(job_id, tool_html);
+      }
+
+      // Update job with tool data (without tool_html)
+      await jobService.updateJob(job_id, {
         status: targetStatus,
         tool_name,
         slug,
-        tool_html,
         template_type,
         qa_report: {
           score: qa_report.score,
@@ -245,7 +249,7 @@ router.post('/deploy-callback',
 
     try {
       // Get job
-      const job = getJob(job_id);
+      const job = await jobService.getJob(job_id);
 
       if (!job) {
         logger.warn('Deploy callback for unknown job', { job_id });
@@ -306,7 +310,7 @@ router.post('/deploy-callback',
         updates.deploy_error = deployError;
       }
 
-      updateJob(job_id, updates);
+      await jobService.updateJob(job_id, updates);
 
       // Mark as processed for idempotency
       markProcessed(idempotencyKey);

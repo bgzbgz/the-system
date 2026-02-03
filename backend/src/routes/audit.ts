@@ -12,7 +12,7 @@ import { Router, Request, Response } from 'express';
 
 import { queryEvents, getJobAuditHistory, jobHasAuditEntries } from '../services/audit';
 import { getAllAuditLogs, hasAuditEntries } from '../services/stateMachine';
-import { getJob } from '../services/jobStore';
+import { jobService } from '../db/supabase';
 import logger from '../utils/logger';
 import {
   sendSuccess,
@@ -90,7 +90,7 @@ router.get('/:jobId', async (req: Request, res: Response) => {
 
   try {
     // Check if job exists
-    const job = getJob(jobId);
+    const job = await jobService.getJob(jobId);
 
     // Also check audit entries for jobs that may have been deleted
     const hasEntries = await hasAuditEntries(jobId);

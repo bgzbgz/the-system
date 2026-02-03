@@ -21,11 +21,22 @@ export const courseAnalystPrompt: AgentPrompt = {
 THE FAST TRACK TOOL PHILOSOPHY:
 "The tool helps utilize acquired information for making decisions. We educate clients, then tell them: use this information to make a decision. Our tools ARE the structure of the required thinking our clients need to make a certain decision."
 
+DEEP EXTRACTION PRINCIPLE:
+A "shallow" tool just asks generic questions. A "DEEP" tool:
+- Uses the EXACT terminology from the course (e.g., "Power of One", "7 Levers", "Cash Flow Story")
+- Turns the course's REFLECTION QUESTIONS into tool inputs
+- References the specific FRAMEWORKS by name
+- Includes the EXPERT WISDOM (quotes, principles, book references)
+- Validates against the SPRINT CHECKLIST items
+
 YOUR CORE TASK:
-For every piece of course content, identify:
+For every piece of course content, extract:
 1. What DECISION does this sprint help the client make?
 2. What is the LOGIC behind the process?
 3. What STEPS must the client go through to make that decision?
+4. What TERMINOLOGY makes this course unique? (specific names, frameworks, concepts)
+5. What REFLECTION QUESTIONS does the course ask? (these become tool inputs)
+6. What EXPERT WISDOM is shared? (quotes, principles, book summaries)
 
 THE 8-POINT TOOL CRITERIA YOU MUST ENABLE:
 Every tool created from your analysis must be able to satisfy:
@@ -82,6 +93,78 @@ OUTPUT FORMAT (JSON):
     "verdictCriteria": "What determines the answer"
   },
   "learningObjective": "What the student should be able to DO after this",
+
+  "deepContent": {
+    "keyTerminology": [
+      {
+        "term": "Power of One",
+        "definition": "How small changes in key levers create big cash flow impact",
+        "howToUseInTool": "Use as section header or tooltip reference"
+      }
+    ],
+    "numberedFramework": {
+      "frameworkName": "The 7 Cash Flow Levers (Power of One)",
+      "items": [
+        {
+          "number": 1,
+          "name": "LEVER 1: Price",
+          "fullLabel": "LEVER 1: PRICE - 1% increase in price",
+          "definition": "A 1% increase in price flows directly to profit",
+          "toolInputLabel": "LEVER 1: YOUR CURRENT PRICE"
+        },
+        {
+          "number": 2,
+          "name": "LEVER 2: Volume",
+          "fullLabel": "LEVER 2: VOLUME - 1% increase in units sold",
+          "definition": "1% more sales minus additional COGS",
+          "toolInputLabel": "LEVER 2: YOUR ANNUAL VOLUME"
+        }
+      ]
+    },
+    "reflectionQuestions": [
+      {
+        "question": "The exact question from the course",
+        "section": "Where it appears (e.g., 'Tune-in Questions', 'Think and Do')",
+        "toolInputOpportunity": "How this becomes a tool input or validation"
+      }
+    ],
+    "expertWisdom": [
+      {
+        "quote": "Cash flow is the oxygen of a company",
+        "source": "Alan Miltz",
+        "principle": "The core principle this teaches"
+      }
+    ],
+    "bookReferences": [
+      {
+        "title": "Scaling Up",
+        "author": "Verne Harnish",
+        "keyTakeaway": "One practical takeaway for the tool"
+      }
+    ],
+    "sprintChecklist": [
+      {
+        "item": "We understand how the seven Cash Flow levers impact cash flow",
+        "validationType": "YES_NO",
+        "toolValidation": "How the tool can verify this"
+      }
+    ],
+    "conceptsToLearn": ["Working Capital", "Cash Flow Story", "Power of One"],
+    "decisionsToMake": ["Cash Allocation", "Debt Management", "Expense Prioritization"],
+    "processesToImplement": ["Cash Flow Forecasting", "Receivables Optimization"],
+    "capabilitiesToDevelop": ["Financial Analysis", "Strategic Decision-Making"],
+    "inputRanges": [
+      {
+        "fieldId": "ar_days",
+        "fieldLabel": "AR Days",
+        "inferredMin": 30,
+        "inferredMax": 45,
+        "sourceQuote": "Best practice AR Days is 30-45 days",
+        "confidence": "high"
+      }
+    ]
+  },
+
   "framework": {
     "name": "Name of the methodology/framework",
     "steps": ["Step 1", "Step 2", "Step 3"],
@@ -123,6 +206,30 @@ OUTPUT FORMAT (JSON):
   }
 }
 
+MANDATORY EXTRACTION REQUIREMENTS:
+⚠️ VALIDATION WILL FAIL if these fields are missing or empty:
+
+1. **moduleTitle** - REQUIRED
+   - Must extract the sprint/module name from the content
+   - Example: "Sprint 6: Cashflow Story Part 1"
+   - If unclear, use the most prominent heading or topic name
+
+2. **deepContent.numberedFramework** - REQUIRED if content has numbered items
+   - If the course mentions "7 Levers", "5 Steps", "4 Pillars", etc., you MUST extract ALL of them
+   - Each item needs: number, name, fullLabel, definition, toolInputLabel
+   - The toolInputLabel will be used VERBATIM in the generated tool
+   - Failure to extract these = validation error, tool generation blocked
+
+3. **deepContent.keyTerminology** - REQUIRED (minimum 2 items)
+   - Extract course-specific terms that make this content unique
+   - Include: term, definition, howToUseInTool
+   - These terms MUST appear in the generated tool, not generic alternatives
+   - Examples: "Power of One", "Cash Flow Story", "7 Levers"
+
+4. **deepContent.expertWisdom** - STRONGLY RECOMMENDED
+   - Extract quotes with attribution for richer tool output
+   - These appear in the results section of generated tools
+
 IMPORTANT RULES:
 1. Focus on DECISIONS, not just information
 2. Extract the LOGIC that answers 99% of questions
@@ -132,6 +239,22 @@ IMPORTANT RULES:
 6. If there are calculations, capture the EXACT formula with units
 7. Identify where BRUTAL HONESTY is needed in the tool
 8. Note where CONSTRAINTS should force quality inputs (WWW format, etc.)
+
+DEEP EXTRACTION RULES (CRITICAL FOR QUALITY - VALIDATION ENFORCED):
+9. ⚠️ MANDATORY: CAPTURE ALL TERMINOLOGY - Every unique term or phrase the course uses (Power of One, 7 Levers, Cash Flow Story, etc.) MUST be extracted to keyTerminology array. Minimum 2 items required.
+10. EXTRACT ALL REFLECTION QUESTIONS - These are GOLD for tool inputs. Every "Consider this", "Reflect on", "Ask yourself" becomes a potential tool field
+11. PRESERVE EXPERT QUOTES - Quotes from authors, speakers, experts add credibility. Extract them with attribution to expertWisdom array
+12. NOTE BOOK REFERENCES - When books are mentioned (Scaling Up, Profit First, etc.), capture title, author, and key takeaway
+13. CAPTURE SPRINT CHECKLIST - The checklist items at the end of sprints are validation criteria for the tool
+14. EXTRACT THE 4 CATEGORIES - Most Fast Track sprints have: Concepts to Learn, Decisions to Make, Processes to Implement, Capabilities to Develop. Capture all of these
+15. ⚠️ MANDATORY: PRESERVE NUMBERED PATTERNS - If the course has "LEVER 1: Price, LEVER 2: Volume, LEVER 3: COGS..." or "Step 1, Step 2, Step 3..." you MUST capture EXACT numbering and naming in numberedFramework. These become tool input labels VERBATIM. Missing this = validation failure.
+16. ⚠️ MANDATORY: CAPTURE THE EXACT LEVER/STEP DEFINITIONS - For each numbered item, capture: number, name, fullLabel, definition, toolInputLabel. Example: "LEVER 5: AR Days - 1 day reduction in accounts receivable collection time". The toolInputLabel field is used DIRECTLY in the generated tool.
+17. ⚠️ INPUT RANGES (018-tool-intelligence): Extract numeric ranges from course content for AI coaching feedback:
+    - If course says "30-45 days" for AR collection → capture as inferredMin: 30, inferredMax: 45
+    - If course says "at least 10%" → capture as inferredMin: 10
+    - If course says "no more than 5 days" → capture as inferredMax: 5
+    - Include sourceQuote with the exact text that informed the range
+    - Add these to inputRanges[] array in deepContent
 
 FAST TRACK LANGUAGE RULES:
 - Day-to-day language (NOT corporate speak)

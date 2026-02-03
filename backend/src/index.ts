@@ -35,8 +35,8 @@ import configGuard from './middleware/configGuard';
 import corsMiddleware from './middleware/cors';
 import { requestLogger, lightRequestLogger } from './middleware/requestLogger';
 import { seedExampleJobs } from './services/jobStore';
-import { connectDB, createAllIndexes, isConnected } from './config/database';
 import { startupDatabase, shutdownDatabase, getDatabaseStatus } from './db/startup';
+import { testConnection as testSupabaseConnection, isSupabaseConfigured } from './db/supabase';
 import logger from './utils/logger';
 import { aiService } from './services/ai';
 import { initializePrompts } from './prompts';
@@ -162,8 +162,36 @@ app.get('/', (req, res) => {
 // ========== SERVER STARTUP ==========
 
 /**
+ * Initialize Supabase connection
+ * Tests connection and reports status
+ */
+async function initializeSupabase(): Promise<boolean> {
+  // Skip if Supabase not configured
+  if (!isSupabaseConfigured()) {
+    console.log('[Startup] Supabase not configured (SUPABASE_URL/SERVICE_KEY missing)');
+    return false;
+  }
+
+  try {
+    const result = await testSupabaseConnection();
+
+    if (!result.connected) {
+      console.error('[Startup] Supabase connection failed:', result.error);
+      return false;
+    }
+
+    console.log(`[Startup] Supabase connected (latency: ${result.latency_ms}ms)`);
+    return true;
+  } catch (error) {
+    console.error('[Startup] Supabase connection test failed:', error);
+    return false;
+  }
+}
+
+/**
  * Initialize MongoDB connection
  * Spec: 017-mongodb-schema - Uses new db module for connection and initialization
+ * NOTE: MongoDB is being phased out in favor of Supabase
  */
 async function initializeDatabase(): Promise<boolean> {
   // Skip if MONGODB_URI not configured (use in-memory storage)
@@ -258,18 +286,31 @@ async function startServer(): Promise<void> {
     console.log('[Startup] LearnWorlds Integration not configured (optional)');
   }
 
-  // Step 3: Initialize MongoDB (optional - T058)
+  // Step 3: Initialize Supabase (primary database)
+  const usesSupabase = await initializeSupabase();
+
+  // Step 3b: Initialize MongoDB (legacy - optional - T058)
   const usesMongoDB = await initializeDatabase();
 
   // Step 4: Seed example jobs for demo purposes (only for in-memory)
-  if (!usesMongoDB) {
+  if (!usesMongoDB && !usesSupabase) {
     seedExampleJobs();
   }
 
   // Step 5: Start HTTP server (even in CONFIG_ERROR state)
   app.listen(PORT, () => {
     console.log(`[Startup] Server running on port ${PORT}`);
-    console.log(`[Startup] Storage: ${usesMongoDB ? 'MongoDB' : 'In-Memory'}`);
+
+    // Determine storage type
+    let storageType = 'In-Memory';
+    if (usesSupabase && usesMongoDB) {
+      storageType = 'Supabase + MongoDB';
+    } else if (usesSupabase) {
+      storageType = 'Supabase';
+    } else if (usesMongoDB) {
+      storageType = 'MongoDB';
+    }
+    console.log(`[Startup] Storage: ${storageType}`);
 
     if (!isConfigurationValid()) {
       console.log('[Startup] WARNING: Server is running but core operations are BLOCKED');

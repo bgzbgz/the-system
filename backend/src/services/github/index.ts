@@ -17,14 +17,12 @@ import { getGitHubConfig, isGitHubConfigured, logOperation } from './client';
 import { deployTool } from './deploy';
 import { triggerMongoSetup, generateCollectionName, getWorkflowRun } from './workflows';
 
-// Import job store for full deploy pipeline (use in-memory store that routes use)
-import { getJob, updateJob } from '../jobStore';
+// Import job services (Supabase)
+import { jobService, jobArtifactService, toolDefaultService } from '../../db/supabase';
 import { JobStatus, Job } from '../../models/job';
 
-// Feature 021: Unified tool collection
-import * as toolCollectionService from '../../db/services/toolCollectionService';
-import { CreateDefaultsInput, CourseContext, Question } from '../../db/models/toolCollection';
-import { generateUUID } from '../../db/utils/uuid';
+// Legacy job store import for backward compatibility during migration
+import { getJob, updateJob } from '../jobStore';
 
 // ========== DEFAULTS BUILDER (Feature 021) ==========
 
@@ -34,19 +32,25 @@ import { generateUUID } from '../../db/utils/uuid';
  *
  * @param job - Job with tool data
  * @param deployResult - Successful deploy result
- * @returns CreateDefaultsInput
+ * @returns ToolDefaultInsert for Supabase
  */
 export function buildDefaultsFromJob(
   job: Job,
   deployResult: DeployResult
-): CreateDefaultsInput {
-  const toolId = generateUUID();
+): {
+  tool_slug: string;
+  tool_name: string;
+  github_url: string;
+  deployed_at: string;
+  tool_config: Record<string, unknown>;
+  course_context: Record<string, unknown>;
+} {
   const slug = job.slug || '';
   const toolName = job.tool_name || 'Unnamed Tool';
   const githubUrl = deployResult.pagesUrl || deployResult.repoUrl || '';
 
-  // Build courseContext from job._courseContext if available
-  let courseContext: CourseContext | undefined;
+  // Build course_context from job._courseContext if available
+  let courseContext: Record<string, unknown> = {};
   const jobContext = (job as Job & { _courseContext?: Record<string, unknown> })._courseContext;
 
   if (jobContext) {
@@ -87,29 +91,20 @@ export function buildDefaultsFromJob(
     }
   }
 
-  // Build questions from toolSpec inputs if available
-  const questions: Question[] = [];
+  // Build tool_config from toolSpec if available
+  const toolConfig: Record<string, unknown> = {};
   const toolSpec = (job as Job & { toolSpec?: { inputs?: Array<{ name: string; label: string; type?: string; required?: boolean }> } }).toolSpec;
   if (toolSpec?.inputs) {
-    for (const input of toolSpec.inputs) {
-      questions.push({
-        fieldId: input.name,
-        prompt: input.label,
-        inputType: input.type || 'text',
-        required: input.required !== false
-      });
-    }
+    toolConfig.inputs = toolSpec.inputs;
   }
 
   return {
-    tool_id: toolId,
     tool_slug: slug,
     tool_name: toolName,
     github_url: githubUrl,
-    questions,
-    inputs: questions.map(q => q.fieldId),
-    outputs: ['verdict', 'score'],
-    courseContext
+    deployed_at: new Date().toISOString(),
+    tool_config: toolConfig,
+    course_context: courseContext
   };
 }
 
@@ -228,11 +223,11 @@ export class GitHubService {
         };
       }
 
-      // Step 3: Feature 021 - Save defaults to unified tool collection
+      // Step 3: Feature 021 - Save defaults to Supabase tool_defaults table
       try {
         const defaultsInput = buildDefaultsFromJob(job, deployResult);
-        await toolCollectionService.saveDefaults(slug, defaultsInput);
-        logOperation('fullDeploy', jobId, true, `defaults saved to tool_${slug}`);
+        await toolDefaultService.createToolDefault(defaultsInput);
+        logOperation('fullDeploy', jobId, true, `defaults saved to Supabase tool_defaults`);
       } catch (e) {
         // Log but don't fail deployment - defaults can be created later
         console.warn(`[GitHub] Failed to save defaults for ${jobId}:`, e);

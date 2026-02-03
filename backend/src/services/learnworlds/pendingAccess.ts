@@ -8,7 +8,7 @@
  * 3. Tool page checks pending access → instant verification
  */
 
-import { getDB, isConnected } from '../../config/database';
+import { getDB, isConnected } from '../../db/connection';
 
 export interface PendingAccess {
   _id?: string;

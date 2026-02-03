@@ -4,7 +4,7 @@
  * Logs and tracks when LearnWorlds users visit tools
  */
 
-import { getDB, isConnected } from '../../config/database';
+import { getDB, isConnected } from '../../db/connection';
 import { LearnWorldsUser } from './users';
 
 export interface ToolVisit {

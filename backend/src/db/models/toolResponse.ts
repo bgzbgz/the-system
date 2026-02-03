@@ -7,11 +7,21 @@
  */
 
 import { ObjectId } from 'mongodb';
+import { AnalysisStatus } from '../../services/toolIntelligence/types';
 
 /**
  * Tool response document
  * Per data-model.md ToolResponse interface
  */
+/**
+ * Analysis reference for tool response (018-tool-intelligence)
+ */
+export interface AnalysisReference {
+  _id: ObjectId;
+  status: AnalysisStatus;
+  generatedAt: Date;
+}
+
 export interface ToolResponse {
   _id?: ObjectId;
   response_id: string;                // UUID, unique
@@ -24,6 +34,8 @@ export interface ToolResponse {
   commitment?: string;                // User's commitment text
   completed_at: Date;
   session_id: string;
+  /** Reference to AI analysis (018-tool-intelligence) */
+  analysis?: AnalysisReference | null;
 }
 
 /**

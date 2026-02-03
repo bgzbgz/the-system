@@ -13,7 +13,7 @@ import {
   isConfigurationValid
 } from '../config/config';
 import { ConfigurationState, HealthResponse } from '../config/types';
-import { checkConnection, isConnected } from '../config/database';
+import { testConnection, isSupabaseConfigured } from '../db/supabase';
 import logger from '../utils/logger';
 
 // ========== ROUTER ==========
@@ -49,7 +49,7 @@ router.get('/health', async (req: Request, res: Response) => {
     };
 
     try {
-      const dbStatus = await checkConnection();
+      const dbStatus = await testConnection();
       dbCheck = {
         status: dbStatus.connected ? 'connected' : 'disconnected',
         ...(dbStatus.latency_ms !== undefined && { latency_ms: dbStatus.latency_ms }),
@@ -63,7 +63,7 @@ router.get('/health', async (req: Request, res: Response) => {
     }
 
     // Determine overall health status
-    // Healthy as long as server is running - MongoDB is optional
+    // Healthy as long as server is running - Supabase is optional
     // Config errors are acceptable (will block some operations but server is still "up")
     const isHealthy = true;
 

@@ -48,7 +48,7 @@ export const jobSubmissionSchema = z.object({
   file_content: z
     .string()
     .min(1, 'File content is required')
-    .max(500000, 'File content must be at most 500,000 characters'),
+    .max(2000000, 'File content must be at most 2,000,000 characters'),
 
   category: CategoryTypeSchema,
 

@@ -67,7 +67,7 @@ export interface IAIProvider {
 
 // ========== ERROR TYPES ==========
 
-export type AIErrorCode = 'PROVIDER_UNAVAILABLE' | 'API_ERROR' | 'TIMEOUT';
+export type AIErrorCode = 'PROVIDER_UNAVAILABLE' | 'API_ERROR' | 'TIMEOUT' | 'TOKEN_LIMIT_EXCEEDED';
 
 /**
  * Custom error for AI service failures
@@ -81,4 +81,45 @@ export class AIServiceError extends Error {
     super(message);
     this.name = 'AIServiceError';
   }
+}
+
+// ========== TOKEN & COST TRACKING ==========
+
+/**
+ * Cost per 1M tokens by provider and model (in USD)
+ * Updated: 2026-02
+ */
+export const TOKEN_COSTS: Record<string, { input: number; output: number }> = {
+  'claude-sonnet-4-20250514': { input: 3.00, output: 15.00 },
+  'claude-opus-4-20250514': { input: 15.00, output: 75.00 },
+  'gemini-2.0-flash': { input: 0.075, output: 0.30 },
+  'gemini-2.0-pro': { input: 1.25, output: 5.00 },
+};
+
+/**
+ * Default token limits per stage
+ */
+export const DEFAULT_TOKEN_LIMITS = {
+  secretary: { maxInput: 50000, maxOutput: 4096 },
+  courseProcessor: { maxInput: 100000, maxOutput: 8192 },
+  audienceProfiler: { maxInput: 20000, maxOutput: 2048 },
+  exampleGenerator: { maxInput: 20000, maxOutput: 4096 },
+  copyWriter: { maxInput: 20000, maxOutput: 2048 },
+  toolBuilder: { maxInput: 50000, maxOutput: 16384 },
+  qaDepartment: { maxInput: 50000, maxOutput: 4096 },
+  feedbackApplier: { maxInput: 50000, maxOutput: 16384 },
+  brandGuardian: { maxInput: 50000, maxOutput: 2048 },
+  default: { maxInput: 50000, maxOutput: 4096 },
+};
+
+/**
+ * Extended response with cost tracking
+ */
+export interface AICompletionResponseWithCost extends AICompletionResponse {
+  /** Estimated cost in USD */
+  estimatedCostUsd: number;
+  /** Whether fallback was used */
+  usedFallback: boolean;
+  /** Original provider if fallback was used */
+  originalProvider?: AIProviderType;
 }

@@ -36,7 +36,10 @@ COMMON FIXES:
 
 Color Issues:
 - Replace incorrect hex colors with brand colors
-- Primary: #FF5733, Secondary: #1A1A2E, Accent: #F5F5F5
+- Black: #000000 (backgrounds, primary text)
+- White: #FFFFFF (backgrounds, text on dark)
+- Yellow: #FFF469 (accents ONLY - buttons, borders, progress)
+- Grey: #B2B2B2 (secondary text, disabled states)
 
 Clarity Issues:
 - Rewrite unclear labels to be more descriptive
