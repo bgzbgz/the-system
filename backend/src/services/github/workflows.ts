@@ -13,13 +13,16 @@ import { getOctokit, getGitHubConfig, withRetry, logOperation, classifyError } f
 
 /**
  * Generate MongoDB collection name from tool slug
- * Per US2 acceptance criteria: tool_{slug}_responses
+ * Feature 021: Unified collection pattern - tool_{slug}
+ *
+ * Previously: tool_{slug}_responses (deprecated)
+ * Now: tool_{slug} (contains both defaults and responses)
  *
  * @param slug - Tool identifier
  * @returns Collection name
  */
 export function generateCollectionName(slug: string): string {
-  return `tool_${slug}_responses`;
+  return `tool_${slug}`;
 }
 
 // ========== WORKFLOW DISPATCH ==========

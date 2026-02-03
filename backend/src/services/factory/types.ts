@@ -427,6 +427,109 @@ export type StageOutput =
   | CopyWriterOutput
   | BrandGuardianOutput;
 
+// ========== VALIDATION TYPES ==========
+
+/**
+ * Stage where validation occurred
+ */
+export type ValidationStage = 'extraction' | 'design' | 'output';
+
+/**
+ * Error codes for validation failures
+ */
+export type ValidationErrorCode =
+  // Extraction errors
+  | 'MISSING_NUMBERED_FRAMEWORK'
+  | 'MISSING_KEY_TERMINOLOGY'
+  | 'INCOMPLETE_FRAMEWORK_ITEMS'
+  | 'MISSING_MODULE_TITLE'
+  // Design alignment errors
+  | 'FRAMEWORK_ITEM_NOT_MAPPED'
+  | 'TERMINOLOGY_NOT_USED'
+  | 'QUOTE_NOT_PLACED'
+  // Output errors
+  | 'FRAMEWORK_ITEM_MISSING_IN_HTML'
+  | 'EXPERT_QUOTE_MISSING_IN_HTML'
+  | 'TERMINOLOGY_GENERICIZED';
+
+/**
+ * A single validation issue
+ */
+export interface ValidationIssue {
+  /** Machine-readable error code */
+  code: ValidationErrorCode;
+  /** Human-readable description */
+  message: string;
+  /** Which field or element failed */
+  field: string;
+  /** What was expected */
+  expected: string;
+  /** What was actually found */
+  actual: string;
+}
+
+/**
+ * Result from any validation function
+ */
+export interface ValidationResult {
+  /** Whether validation passed (no errors) */
+  passed: boolean;
+  /** Critical issues that block pipeline progression */
+  errors: ValidationIssue[];
+  /** Non-blocking issues for visibility */
+  warnings: ValidationIssue[];
+  /** What was validated */
+  stage: ValidationStage;
+  /** Timestamp of validation */
+  timestamp: Date;
+}
+
+/**
+ * Structured context for Tool Builder
+ * Replaces the string-embedded _courseContext approach
+ */
+export interface BuilderContext {
+  /** Tool basic info */
+  tool: {
+    name: string;
+    tagline: string;
+    moduleReference: string;
+  };
+
+  /** REQUIRED: Framework items to implement as inputs */
+  frameworkItems: Array<{
+    number: number;
+    label: string;
+    definition: string;
+    inputType: 'number' | 'text' | 'select';
+    placeholder: string;
+  }>;
+
+  /** REQUIRED: Terminology to use in labels and help text */
+  terminology: Array<{
+    term: string;
+    useIn: 'label' | 'helpText' | 'resultSection';
+  }>;
+
+  /** OPTIONAL: Expert quote to display in results */
+  expertQuote?: {
+    quote: string;
+    source: string;
+  };
+
+  /** OPTIONAL: Sprint checklist items for results */
+  checklist?: string[];
+
+  /** Processing logic */
+  calculation: {
+    formula: string;
+    verdictCriteria: {
+      go: string;
+      noGo: string;
+    };
+  };
+}
+
 // ========== TYPE GUARDS ==========
 
 /**

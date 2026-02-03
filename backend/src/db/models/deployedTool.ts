@@ -8,11 +8,36 @@
 
 import { ObjectId } from 'mongodb';
 import { CategoryType } from './job';
+import { InputRange, QualityGate } from '../../services/toolIntelligence/types';
 
 /**
  * Deployed tool document
  * Per data-model.md DeployedTool interface
  */
+/**
+ * Course context for AI-powered tool intelligence
+ * Feature: 018-tool-intelligence
+ */
+export interface ToolCourseContext {
+  /** Course terminology */
+  terminology?: Array<{
+    term: string;
+    definition: string;
+  }>;
+  /** Course frameworks */
+  frameworks?: Array<{
+    name: string;
+    description: string;
+  }>;
+  /** Expert quotes from course */
+  expertQuotes?: Array<{
+    quote: string;
+    source: string;
+  }>;
+  /** Input ranges for contextual feedback (018-tool-intelligence) */
+  inputRanges?: InputRange[];
+}
+
 export interface DeployedTool {
   _id?: ObjectId;
   tool_id: string;                    // UUID, unique
@@ -24,6 +49,10 @@ export interface DeployedTool {
   deployed_at: Date;
   response_count: number;             // Default: 0
   version: number;                    // For future versioning
+  /** Course context for AI analysis (018-tool-intelligence) */
+  courseContext?: ToolCourseContext;
+  /** Quality gate configuration (018-tool-intelligence) */
+  qualityGate?: QualityGate;
 }
 
 /**

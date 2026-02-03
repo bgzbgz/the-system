@@ -47,10 +47,16 @@ import {
   logQAIteration,
   logRevisionAttempt,
   logRetryAttempt,
-  logValidationError
+  logValidationError,
+  logValidationResult,
+  logExtractionMetadata
 } from './logger';
 import { CourseProcessor } from './courseProcessor';
 import { aiService } from '../ai';
+import { validateToolOutput, formatValidationResult } from './validation';
+import { BuilderContext } from './types';
+import { scoreTool } from '../qualityScoring';
+import * as qualityStore from '../../db/services/qualityStore';
 
 // ========== CONSTANTS ==========
 
@@ -126,21 +132,35 @@ export class ToolFactory {
           jobId: request.jobId,
           status: 'failed',
           revisionCount: 0,
-          error: courseResult.error || 'Failed to process course content',
+          error: { stage: 'secretary', message: courseResult.error || 'Failed to process course content' },
           timing: this.buildTiming(context)
         };
       }
 
       toolSpec = courseResult.toolSpec;
 
-      // Log course processing details
+      // Log course processing details including deep content
+      const deepContent = courseResult.courseAnalysis?.deepContent;
       console.log(`[Factory] Course analysis complete:`, {
         moduleTitle: courseResult.courseAnalysis?.moduleTitle,
         toolName: toolSpec.name,
         inputCount: toolSpec.inputs.length,
         hasFramework: !!courseResult.courseAnalysis?.framework,
+        // Deep content metrics
+        terminologyCount: deepContent?.keyTerminology?.length || 0,
+        reflectionQuestionsCount: deepContent?.reflectionQuestions?.length || 0,
+        expertQuotesCount: deepContent?.expertWisdom?.length || 0,
+        bookReferencesCount: deepContent?.bookReferences?.length || 0,
+        checklistItemsCount: deepContent?.sprintChecklist?.length || 0,
         timing: courseResult.timing
       });
+
+      if (deepContent?.keyTerminology?.length) {
+        console.log(`[Factory] Key terminology extracted:`, deepContent.keyTerminology.map(t => t.term).join(', '));
+      }
+      if (deepContent?.expertWisdom?.length) {
+        console.log(`[Factory] Expert quotes found from:`, deepContent.expertWisdom.map(e => e.source).join(', '));
+      }
     } else {
       // Stage 1: Secretary - Extract tool specification (original flow)
       const secretaryOutput = await this.executeStage<SecretaryInput, SecretaryOutput>(
@@ -226,6 +246,32 @@ export class ToolFactory {
       context
     );
 
+    // Stage 6.5: Output Validation - Verify course content appears in HTML
+    const builderContext = (enhancedSpec as ToolSpec & { _builderContext?: BuilderContext })._builderContext;
+    if (builderContext && builderContext.frameworkItems.length > 0) {
+      const outputValidationStartTime = Date.now();
+      console.log(`[Factory] Running Output Validation for job ${request.jobId}`);
+      const outputValidation = validateToolOutput(builderOutput.html, builderContext);
+
+      // Log validation results using structured logger
+      logValidationResult(request.jobId, outputValidation);
+
+      // Track validation timing
+      const outputValidationDuration = Date.now() - outputValidationStartTime;
+      context.stageTiming.set('toolBuilder', (context.stageTiming.get('toolBuilder') || 0) + outputValidationDuration);
+      console.log(`[Factory] Output validation completed in ${outputValidationDuration}ms`);
+
+      // Log full validation result for transparency (debug mode only)
+      if (process.env.DEBUG === 'true') {
+        console.log(`[Factory] Output validation details:\n${formatValidationResult(outputValidation)}`);
+      }
+
+      // Note: We continue to QA even if output validation fails
+      // QA will catch the issues and feedback applier can fix them
+    } else {
+      console.log(`[Factory] Skipping output validation - no builder context or framework items`);
+    }
+
     // Stage 7: Brand Guardian - Verify brand compliance
     console.log(`[Factory] Running Brand Guardian for job ${request.jobId}`);
     const brandOutput = await this.executeStage<BrandGuardianInput, BrandGuardianOutput>(
@@ -246,6 +292,11 @@ export class ToolFactory {
     // Log pipeline completion
     logPipelineComplete(context, qaResult.result.passed);
 
+    // Quality Scoring - fire and forget (T028-T029)
+    // Per spec 020-self-improving-factory: Non-blocking post-generation hook
+    this.runQualityScoring(request.jobId, toolSpec.name.toLowerCase().replace(/\s+/g, '-') || '', qaResult.html)
+      .catch(err => console.error(`[Factory] Quality scoring failed for job ${request.jobId}:`, err));
+
     return {
       success: qaResult.result.passed,
       jobId: request.jobId,
@@ -256,6 +307,39 @@ export class ToolFactory {
       revisionCount: context.revisionCount,
       timing: this.buildTiming(context)
     };
+  }
+
+  /**
+   * Run quality scoring asynchronously (T028-T029)
+   * Per spec 020-self-improving-factory: Post-generation hook, non-blocking
+   */
+  private async runQualityScoring(jobId: string, toolSlug: string, html: string): Promise<void> {
+    try {
+      console.log(`[Factory] Starting quality scoring for job ${jobId}`);
+      const startTime = Date.now();
+
+      // Score the tool against 8-point criteria
+      const score = await scoreTool({
+        job_id: jobId,
+        tool_slug: toolSlug,
+        html_content: html,
+      });
+
+      // Store the quality score
+      await qualityStore.saveQualityScore(score);
+
+      const duration = Date.now() - startTime;
+      console.log(`[Factory] Quality scoring complete for job ${jobId}: ${score.overall_score}/100 (${score.passed ? 'PASS' : 'FAIL'}) in ${duration}ms`);
+
+      // Log individual criterion results
+      const failedCriteria = score.criteria.filter(c => !c.passed);
+      if (failedCriteria.length > 0) {
+        console.log(`[Factory] Failed criteria: ${failedCriteria.map(c => c.criterion_id).join(', ')}`);
+      }
+    } catch (error) {
+      // Quality scoring failure should not affect the pipeline
+      console.error(`[Factory] Quality scoring error for job ${jobId}:`, error);
+    }
   }
 
   /**

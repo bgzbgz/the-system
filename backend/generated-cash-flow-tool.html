@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Power of One Cash Flow Optimizer - Fast Track</title>
+  <style>
+    /* FAST TRACK BRAND FONTS */
+    @font-face {
+      font-family: 'Plaak';
+      src: url('https://bgzbgz.github.io/fast-track-tool-system-v4/fonts/Plaak3Trial-43-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Riforma';
+      src: url('https://bgzbgz.github.io/fast-track-tool-system-v4/fonts/RiformaLL-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Monument Grotesk Mono';
+      src: url('https://bgzbgz.github.io/fast-track-tool-system-v4/fonts/MonumentGrotesk-Mono.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    :root {
+      --black: #000000;
+      --white: #FFFFFF;
+      --yellow: #FFF469;
+      --grey: #B2B2B2;
+      --font-headline: 'Plaak', system-ui, sans-serif;
+      --font-body: 'Riforma', system-ui, sans-serif;
+      --font-mono: 'Monument Grotesk Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font-body);
+      background: var(--white);
+      color: var(--black);
+    }
+
+    /* Progress bar - fixed at top */
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--grey);
+      z-index: 100;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--yellow);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Slide counter */
+    .slide-counter {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--grey);
+      z-index: 100;
+    }
+
+    /* Slides container */
+    .slides-container {
+      display: flex;
+      height: 100vh;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Individual slide */
+    .slide {
+      min-width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 60px 24px 120px 24px;
+      text-align: center;
+      overflow-y: auto;
+    }
+
+    /* Slide inner content wrapper */
+    .slide-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100%;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    /* Welcome slide - black background */
+    .slide.welcome {
+      background: var(--black);
+      color: var(--white);
+      justify-content: center;
+    }
+    .slide.welcome .slide-content {
+      justify-content: center;
+    }
+    .slide.welcome h1 {
+      font-family: var(--font-headline);
+      font-size: clamp(28px, 5vw, 56px);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+    .slide.welcome .tagline {
+      font-family: var(--font-body);
+      font-size: clamp(14px, 2vw, 18px);
+      color: var(--grey);
+      margin-bottom: 32px;
+      max-width: 500px;
+      line-height: 1.4;
+    }
+    .slide.welcome .module-ref {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--grey);
+      letter-spacing: 0.05em;
+      margin-bottom: 16px;
+    }
+    .slide.welcome .start-hint {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--yellow);
+      letter-spacing: 0.1em;
+      animation: pulse 2s infinite;
+      margin-top: 24px;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Question slide */
+    .slide.question {
+      background: var(--white);
+      justify-content: center;
+    }
+    .slide.question .slide-content {
+      justify-content: center;
+    }
+    .slide.question .question-number {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--grey);
+      margin-bottom: 16px;
+    }
+    .slide.question h2 {
+      font-family: var(--font-headline);
+      font-size: clamp(20px, 3.5vw, 32px);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      margin-bottom: 12px;
+      max-width: 600px;
+      line-height: 1.2;
+    }
+    .slide.question .help-text {
+      font-family: var(--font-body);
+      font-size: 14px;
+      color: var(--grey);
+      margin-bottom: 24px;
+      max-width: 450px;
+      line-height: 1.4;
+    }
+    .slide.question input,
+    .slide.question select,
+    .slide.question textarea {
+      width: 100%;
+      max-width: 350px;
+      padding: 14px 18px;
+      border: 2px solid var(--black);
+      background: var(--white);
+      font-family: var(--font-body);
+      font-size: 18px;
+      text-align: center;
+    }
+    .slide.question select {
+      text-align: left;
+      font-size: 16px;
+    }
+    .slide.question input:focus,
+    .slide.question select:focus {
+      outline: none;
+      border-color: var(--yellow);
+      background: #FFFEF0;
+    }
+    .slide.question input.valid,
+    .slide.question select.valid {
+      border-color: var(--black);
+      background: #F8FFF8;
+    }
+    .slide.question input.invalid,
+    .slide.question select.invalid {
+      border-color: var(--black);
+      background: #FFF8F8;
+    }
+    .slide.question .error-msg {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--black);
+      background: var(--yellow);
+      padding: 6px 12px;
+      margin-top: 12px;
+      display: none;
+    }
+    .slide.question .error-msg.show { display: inline-block; }
+
+    /* Navigation buttons */
+    .nav-buttons {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      z-index: 100;
+      background: var(--white);
+      padding: 8px;
+    }
+    .nav-btn {
+      padding: 14px 28px;
+      background: var(--yellow);
+      color: var(--black);
+      border: 2px solid var(--black);
+      font-family: var(--font-headline);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      min-width: 110px;
+    }
+    .nav-btn:hover { background: var(--white); }
+    .nav-btn:disabled {
+      background: var(--grey);
+      color: var(--white);
+      cursor: not-allowed;
+    }
+    .nav-btn.secondary {
+      background: var(--white);
+    }
+
+    /* Results slide */
+    .slide.results {
+      background: var(--white);
+      justify-content: flex-start;
+      padding-top: 40px;
+    }
+    .slide.results .slide-content {
+      justify-content: flex-start;
+      padding-top: 20px;
+    }
+    .slide.results h2 {
+      font-family: var(--font-headline);
+      font-size: clamp(20px, 3vw, 28px);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    /* Key learnings - compact grid */
+    .key-learnings {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 600px;
+    }
+    .learning-card {
+      padding: 16px;
+      border: 2px solid var(--black);
+      text-align: left;
+    }
+    .learning-card.highlight {
+      border-left: 6px solid var(--yellow);
+    }
+    .learning-card h4 {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--grey);
+      margin-bottom: 4px;
+    }
+    .learning-card .value {
+      font-family: var(--font-headline);
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .learning-card .label {
+      font-family: var(--font-body);
+      font-size: 11px;
+      color: var(--grey);
+      margin-top: 2px;
+    }
+
+    /* Verdict - compact */
+    .verdict-box {
+      padding: 20px 28px;
+      margin: 16px 0;
+      border: 2px solid var(--black);
+      max-width: 500px;
+      width: 100%;
+    }
+    .verdict-box.go { border-left: 6px solid var(--yellow); }
+    .verdict-box.nogo { border-left: 6px solid var(--black); }
+    .verdict-box h3 {
+      font-family: var(--font-headline);
+      font-size: 32px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .verdict-box p {
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    /* Expert quote - compact */
+    .expert-quote {
+      background: #FFFEF0;
+      border-left: 3px solid var(--yellow);
+      padding: 14px 18px;
+      margin: 16px 0;
+      max-width: 500px;
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-style: italic;
+      line-height: 1.4;
+    }
+    .expert-quote .source {
+      display: block;
+      margin-top: 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-style: normal;
+      text-transform: uppercase;
+      color: var(--grey);
+    }
+
+    /* Commitment slide */
+    .slide.commitment {
+      background: var(--black);
+      color: var(--white);
+      justify-content: center;
+    }
+    .slide.commitment .slide-content {
+      justify-content: center;
+    }
+    .slide.commitment h2 {
+      font-family: var(--font-headline);
+      font-size: clamp(20px, 3vw, 28px);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .commitment-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .commitment-field label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--grey);
+      margin-bottom: 6px;
+    }
+    .commitment-field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid var(--white);
+      background: transparent;
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 16px;
+    }
+    .commitment-field input::placeholder { color: var(--grey); }
+    .commitment-field input:focus {
+      outline: none;
+      border-color: var(--yellow);
+    }
+
+    /* PDF Export button */
+    .pdf-btn {
+      padding: 16px 40px;
+      background: var(--yellow);
+      color: var(--black);
+      border: 2px solid var(--yellow);
+      font-family: var(--font-headline);
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      margin-top: 24px;
+    }
+    .pdf-btn:hover { background: var(--white); border-color: var(--white); }
+
+    /* Print styles for PDF */
+    @media print {
+      .progress-bar, .slide-counter, .nav-buttons, .continue-hint { display: none !important; }
+      html, body { height: auto; overflow: visible; }
+      .slides-container {
+        display: block;
+        transform: none !important;
+      }
+      .slide {
+        min-width: 100%;
+        height: auto;
+        min-height: 100vh;
+        page-break-after: always;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .slide.welcome { background: var(--black) !important; }
+      .slide.commitment { background: var(--black) !important; color: var(--white) !important; }
+      .verdict-box.go { border-left-color: var(--yellow) !important; }
+    }
+
+    /* Sprint Checklist - compact */
+    .sprint-checklist {
+      text-align: left;
+      max-width: 500px;
+      width: 100%;
+      margin-top: 16px;
+    }
+    .sprint-checklist h4 {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--grey);
+      margin-bottom: 10px;
+    }
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      font-family: var(--font-body);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    .checklist-item:last-child { border-bottom: none; }
+    .check-box {
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      border: 2px solid var(--black);
+      margin-right: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+    .check-box.checked { background: var(--yellow); }
+
+    /* Lever rankings */
+    .lever-rankings {
+      width: 100%;
+      max-width: 500px;
+      margin-top: 16px;
+      text-align: left;
+    }
+    .lever-rankings h4 {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--grey);
+      margin-bottom: 10px;
+    }
+    .lever-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border: 1px solid var(--grey);
+      margin-bottom: 4px;
+      font-family: var(--font-body);
+      font-size: 12px;
+    }
+    .lever-item.top { 
+      border-left: 4px solid var(--yellow); 
+      background: #FFFEF0;
+    }
+    .lever-name {
+      font-weight: 600;
+      color: var(--black);
+    }
+    .lever-impact {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--grey);
+    }
+  </style>
+</head>
+<body>
+  <!-- Progress bar -->
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <!-- Slide counter -->
+  <div class="slide-counter">
+    <span id="currentSlide">1</span> / <span id="totalSlides">10</span>
+  </div>
+
+  <!-- Slides container - moves horizontally -->
+  <div class="slides-container" id="slidesContainer">
+
+    <!-- SLIDE 0: Welcome -->
+    <div class="slide welcome" data-slide="0">
+      <div class="slide-content">
+        <p class="module-ref">From Module: Cash Flow Analysis - The Power of One</p>
+        <h1>THE POWER OF ONE<br>CASH FLOW OPTIMIZER</h1>
+        <p class="tagline">Find your highest-impact cash flow lever for immediate 1% improvement</p>
+        <p class="start-hint">PRESS ENTER TO START →</p>
+      </div>
+    </div>
+
+    <!-- SLIDE 1: Annual Revenue -->
+    <div class="slide question" data-slide="1" data-input="annualRevenue">
+      <div class="slide-content">
+        <p class="question-number">QUESTION 1 OF 7</p>
+        <h2>LEVER 1: YOUR CURRENT AVERAGE PRICE<br>(ANNUAL REVENUE)</h2>
+        <p class="help-text">Your total revenue last 12 months</p>
+        <input type="number" id="annualRevenue" placeholder="850000" required min="1">
+        <div class="error-msg" id="error1">ENTER YOUR ANNUAL REVENUE</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: Annual Units -->
+    <div class="slide question" data-slide="2" data-input="annualUnits">
+      <div class="slide-content">
+        <p class="question-number">QUESTION 2 OF 7</p>
+        <h2>LEVER 2: YOUR ANNUAL UNIT VOLUME</h2>
+        <p class="help-text">Total units sold in 12 months</p>
+        <input type="number" id="annualUnits" placeholder="2500" required min="1">
+        <div class="error-msg" id="error2">ENTER YOUR UNIT VOLUME</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: Annual COGS -->
+    <div class="slide question" data-slide="3" data-input="annualCOGS">
+      <div class="slide-content">
+        <p class="question-number">QUESTION 3 OF 7</p>
+        <h2>LEVER 3: YOUR ANNUAL COGS</h2>
+        <p class="help-text">Cost of goods sold last 12 months</p>
+        <input type="number" id="annualCOGS" placeholder="340000" required min="0">
+        <div class="error-msg" id="error3">ENTER YOUR COGS</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: Annual Overhead -->
+    <div class="slide question" data-slide="4" data-input="annualOverhead">
+      <div class="slide-content">
+        <p class="question-number">QUESTION 4 OF 7</p>
+        <h2>LEVER 4: YOUR ANNUAL OVERHEAD</h2>
+        <p class="help-text">Fixed costs like rent, salaries, insurance</p>
+        <input type="number" id="annualOverhead" placeholder="150000" required min="0">
+        <div class="error-msg" id="error4">ENTER YOUR OVERHEAD</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: AR Days -->
+    <div class="slide question" data-slide="5" data-input="arDays">
+      <div class="slide-content">
+        <p class="question-number">QUESTION 5 OF 7</p>
+        <h2>LEVER 5: YOUR CURRENT AR DAYS</h2>
+        <p class="help-text">How long customers take to pay you</p>
+        <input type="number" id="arDays" placeholder="35" required min="1" max="365">
+        <div class="error-msg" id="error5">ENTER DAYS BETWEEN 1 AND 365</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: AP Days -->
+    <div class="slide question" data-slide="6" data-input="apDays">
+      <div class="slide-content">
+        <p class="question-number">QUESTION 6 OF 7</p>
+        <h2>LEVER 6: YOUR CURRENT AP DAYS</h2>
+        <p class="help-text">How long you take to pay suppliers</p>
+        <input type="number" id="apDays" placeholder="28" required min="1" max="365">
+        <div class="error-msg" id="error6">ENTER DAYS BETWEEN 1 AND 365</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7: Inventory Days -->
+    <div class="slide question" data-slide="7" data-input="inventoryDays">
+      <div class="slide-content">
+        <p class="question-number">QUESTION 7 OF 7</p>
+        <h2>LEVER 7: YOUR CURRENT INVENTORY DAYS</h2>
+        <p class="help-text">How long inventory sits before selling</p>
+        <input type="number" id="inventoryDays" placeholder="45" required min="0" max="365">
+        <div class="error-msg" id="error7">ENTER DAYS BETWEEN 0 AND 365</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: Results -->
+    <div class="slide results" data-slide="results">
+      <div class="slide-content">
+        <h2>YOUR POWER OF ONE ANALYSIS</h2>
+
+        <div class="key-learnings" id="keyLearnings">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <div class="verdict-box go" id="verdictBox">
+          <h3 id="verdictText">PULL THIS LEVER NOW</h3>
+          <p id="verdictMessage">Your highest-impact lever will generate immediate cash flow improvement with minimal effort</p>
+        </div>
+
+        <div class="expert-quote">
+          "Cash flow is the oxygen of a company. You can have every dream, every strategy you want, but if you don't have the cash, it's academic."
+          <span class="source">— Alan Miltz</span>
+        </div>
+
+        <div class="lever-rankings" id="leverRankings">
+          <h4>ALL 7 LEVERS RANKED BY IMPACT</h4>
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <div class="sprint-checklist">
+          <h4>SPRINT CHECKLIST - CAN YOU NOW SAY YES?</h4>
+          <div class="checklist-item">
+            <div class="check-box checked">✓</div>
+            <span>We understand how the seven Cash Flow levers impact cash flow</span>
+          </div>
+          <div class="checklist-item">
+            <div class="check-box" id="ownershipCheck"></div>
+            <span>We have assigned people responsible for the seven levers</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9: Commitment + PDF -->
+    <div class="slide commitment" data-slide="commitment">
+      <div class="slide-content">
+        <h2>LOCK IN YOUR DECISION</h2>
+        <div class="commitment-form">
+          <div class="commitment-field">
+            <label>WHO owns this lever?</label>
+            <input type="text" id="commitWho" placeholder="Full name (not 'The Team')">
+          </div>
+          <div class="commitment-field">
+            <label>WHAT exactly will you change?</label>
+            <input type="text" id="commitWhat" placeholder="e.g., Reduce AR from 35 to 34 days">
+          </div>
+          <div class="commitment-field">
+            <label>WHEN will you start?</label>
+            <input type="date" id="commitWhen">
+          </div>
+        </div>
+        <button class="pdf-btn" onclick="exportPDF()">DOWNLOAD AS PDF</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Navigation buttons -->
+  <div class="nav-buttons">
+    <button class="nav-btn secondary" id="prevBtn" onclick="prevSlide()" style="display:none;">← BACK</button>
+    <button class="nav-btn" id="nextBtn" onclick="nextSlide()">CONTINUE →</button>
+  </div>
+
+  <script>
+    // ========== SLIDE NAVIGATION ==========
+    let currentSlide = 0;
+    const container = document.getElementById('slidesContainer');
+    const slides = container.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const progressFill = document.getElementById('progressFill');
+    const slideCounter = document.getElementById('currentSlide');
+    const totalSlidesEl = document.getElementById('totalSlides');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    // Store user inputs
+    const userInputs = {};
+
+    totalSlidesEl.textContent = totalSlides;
+
+    function updateSlide() {
+      container.style.transform = `translateX(-${currentSlide * 100}vw)`;
+      slideCounter.textContent = currentSlide + 1;
+      progressFill.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+
+      // Show/hide nav buttons
+      prevBtn.style.display = currentSlide > 0 ? 'block' : 'none';
+
+      // Update next button text
+      if (currentSlide === totalSlides - 1) {
+        nextBtn.textContent = 'FINISH';
+      } else if (currentSlide === totalSlides - 2) {
+        nextBtn.textContent = 'COMMITMENT →';
+      } else {
+        nextBtn.textContent = 'CONTINUE →';
+      }
+
+      // Focus input on question slides
+      const currentSlideEl = slides[currentSlide];
+      const input = currentSlideEl.querySelector('input, select, textarea');
+      if (input && currentSlideEl.classList.contains('question')) {
+        setTimeout(() => input.focus(), 300);
+      }
+
+      // Calculate results when reaching results slide
+      if (currentSlideEl.dataset.slide === 'results') {
+        calculateAndDisplayResults();
+      }
+    }
+
+    function nextSlide() {
+      const currentSlideEl = slides[currentSlide];
+
+      // Validate input on question slides
+      if (currentSlideEl.classList.contains('question')) {
+        const input = currentSlideEl.querySelector('input, select, textarea');
+        if (input && input.required && !validateInput(input)) {
+          return;
+        }
+        // Store the input value
+        if (input && input.id) {
+          userInputs[input.id] = input.type === 'number' ? parseFloat(input.value) || 0 : input.value;
+        }
+      }
+
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateSlide();
+      } else {
+        // Last slide - export PDF
+        exportPDF();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    function validateInput(input) {
+      const errorEl = input.parentElement.querySelector('.error-msg');
+      let isValid = false;
+
+      if (input.type === 'number') {
+        const value = parseFloat(input.value);
+        const min = parseFloat(input.min) || -Infinity;
+        const max = parseFloat(input.max) || Infinity;
+        isValid = !isNaN(value) && value >= min && value <= max;
+      } else if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+        isValid = input.value.trim().length > 0;
+      } else if (input.tagName === 'SELECT') {
+        isValid = input.value !== '';
+      } else {
+        isValid = input.validity.valid;
+      }
+
+      if (isValid) {
+        input.classList.add('valid');
+        input.classList.remove('invalid');
+        if (errorEl) errorEl.classList.remove('show');
+      } else {
+        input.classList.add('invalid');
+        input.classList.remove('valid');
+        if (errorEl) errorEl.classList.add('show');
+      }
+
+      return isValid;
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowRight') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+
+    // Real-time validation on inputs
+    document.querySelectorAll('.slide.question input').forEach(input => {
+      input.addEventListener('input', () => validateInput(input));
+    });
+
+    // ========== CALCULATE RESULTS ==========
+    function calculateAndDisplayResults() {
+      const result = calculateResult(userInputs);
+
+      // Display key learnings
+      displayKeyLearnings(result);
+
+      // Display verdict
+      const verdictBox = document.getElementById('verdictBox');
+      const verdictText = document.getElementById('verdictText');
+      const verdictMessage = document.getElementById('verdictMessage');
+
+      verdictBox.className = 'verdict-box ' + (result.verdict === 'GO' ? 'go' : 'nogo');
+      verdictText.textContent = result.verdict === 'GO' ? 'PULL THIS LEVER NOW' : 'BUILD REVENUE FIRST';
+      verdictMessage.textContent = result.message;
+
+      // Display lever rankings
+      displayLeverRankings(result.allLevers);
+
+      // Save to MongoDB
+      saveResponse(userInputs, result);
+    }
+
+    function calculateResult(inputs) {
+      const revenue = inputs.annualRevenue || 0;
+      const units = inputs.annualUnits || 1;
+      const cogs = inputs.annualCOGS || 0;
+      const overhead = inputs.annualOverhead || 0;
+      const arDays = inputs.arDays || 0;
+      const apDays = inputs.apDays || 0;
+      const inventoryDays = inputs.inventoryDays || 0;
+
+      // Calculate 1% impact for each lever
+      const levers = [
+        {
+          name: 'LEVER 1: PRICE',
+          impact: revenue * 0.01,
+          description: '1% price increase'
+        },
+        {
+          name: 'LEVER 2: VOLUME', 
+          impact: (revenue / units) * units * 0.01,
+          description: '1% volume increase'
+        },
+        {
+          name: 'LEVER 3: COGS',
+          impact: cogs * 0.01,
+          description: '1% COGS reduction'
+        },
+        {
+          name: 'LEVER 4: OVERHEAD',
+          impact: overhead * 0.01,
+          description: '1% overhead reduction'
+        },
+        {
+          name: 'LEVER 5: AR DAYS',
+          impact: (revenue / 365) * 1,
+          description: 'Reduce AR by 1 day'
+        },
+        {
+          name: 'LEVER 6: AP DAYS',
+          impact: (cogs / 365) * 1,
+          description: 'Extend AP by 1 day'
+        },
+        {
+          name: 'LEVER 7: INVENTORY',
+          impact: inventoryDays > 0 ? (revenue / 365) * 1 : 0,
+          description: 'Reduce inventory by 1 day'
+        }
+      ];
+
+      // Sort by impact
+      levers.sort((a, b) => b.impact - a.impact);
+
+      const topLever = levers[0];
+      const highImpactThreshold = 1000; // $1K per day
+
+      let verdict, message;
+      
+      if (topLever.impact >= highImpactThreshold) {
+        verdict = 'GO';
+        message = `${topLever.name} generates $${Math.round(topLever.impact).toLocaleString()}/day improvement. Implement this 1% change within 30 days.`;
+      } else {
+        verdict = 'NO-GO';
+        message = `All levers show low impact (highest: $${Math.round(topLever.impact).toLocaleString()}/day). Focus on doubling revenue before optimizing cash flow levers.`;
+      }
+
+      return {
+        verdict,
+        message,
+        topLever,
+        allLevers: levers,
+        learnings: [
+          { 
+            label: 'TOP LEVER', 
+            value: topLever.name.replace('LEVER ', 'L').split(':')[0], 
+            highlight: true 
+          },
+          { 
+            label: 'DAILY IMPACT', 
+            value: `$${Math.round(topLever.impact).toLocaleString()}`, 
+            highlight: false 
+          },
+          { 
+            label: 'ANNUAL GAIN', 
+            value: `$${Math.round(topLever.impact * 365).toLocaleString()}`, 
+            highlight: false 
+          }
+        ]
+      };
+    }
+
+    function displayKeyLearnings(result) {
+      const container = document.getElementById('keyLearnings');
+      container.innerHTML = '';
+
+      result.learnings.forEach(learning => {
+        const card = document.createElement('div');
+        card.className = 'learning-card' + (learning.highlight ? ' highlight' : '');
+        card.innerHTML = `
+          <h4>${learning.label}</h4>
+          <div class="value">${learning.value}</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function displayLeverRankings(levers) {
+      const container = document.getElementById('leverRankings');
+      container.innerHTML = '<h4>ALL 7 LEVERS RANKED BY IMPACT</h4>';
+
+      levers.forEach((lever, index) => {
+        const item = document.createElement('div');
+        item.className = 'lever-item' + (index === 0 ? ' top' : '');
+        item.innerHTML = `
+          <span class="lever-name">${lever.name}</span>
+          <span class="lever-impact">$${Math.round(lever.impact).toLocaleString()}/day</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // ========== SAVE TO MONGODB ==========
+    const TOOL_SLUG = 'power-of-one-cash-flow-optimizer';
+    const API_BASE = 'https://the-system-production.up.railway.app';
+
+    async function saveResponse(inputs, result) {
+      try {
+        await fetch(`${API_BASE}/api/tools/${TOOL_SLUG}/responses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inputs,
+            result,
+            commitment: {
+              who: document.getElementById('commitWho')?.value || '',
+              what: document.getElementById('commitWhat')?.value || '',
+              when: document.getElementById('commitWhen')?.value || ''
+            },
+            completedAt: new Date().toISOString()
+          })
+        });
+      } catch (e) {
+        console.error('Failed to save:', e);
+      }
+    }
+
+    // ========== PDF EXPORT ==========
+    function exportPDF() {
+      // Update commitment checklist
+      const who = document.getElementById('commitWho')?.value;
+      const what = document.getElementById('commitWhat')?.value;
+      const when = document.getElementById('commitWhen')?.value;
+
+      if (who && what && when) {
+        const ownershipCheck = document.getElementById('ownershipCheck');
+        if (ownershipCheck) {
+          ownershipCheck.classList.add('checked');
+          ownershipCheck.textContent = '✓';
+        }
+      }
+
+      // Trigger print dialog (user can save as PDF)
+      window.print();
+    }
+
+    // ========== COMMITMENT TRACKING ==========
+    ['commitWho', 'commitWhat', 'commitWhen'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', () => {
+          const allFilled = ['commitWho', 'commitWhat', 'commitWhen'].every(fid =>
+            document.getElementById(fid)?.value?.trim().length > 0
+          );
+          const ownershipCheck = document.getElementById('ownershipCheck');
+          if (ownershipCheck) {
+            if (allFilled) {
+              ownershipCheck.classList.add('checked');
+              ownershipCheck.textContent = '✓';
+            } else {
+              ownershipCheck.classList.remove('checked');
+              ownershipCheck.textContent = '';
+            }
+          }
+        });
+      }
+    });
+
+    // Initialize
+    updateSlide();
+  </script>
+</body>
+</html>

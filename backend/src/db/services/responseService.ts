@@ -4,6 +4,11 @@
  *
  * Per contracts/database.yaml operations.tool_responses
  * Operations for dynamic per-tool response collections
+ *
+ * @deprecated Feature 021: Use toolCollectionService instead.
+ * This service used the old `tool_{slug}_responses` collection naming pattern.
+ * Each tool now has a unified collection `tool_{slug}` with both defaults and responses.
+ * See: backend/src/db/services/toolCollectionService.ts
  */
 
 import { Collection, Document } from 'mongodb';

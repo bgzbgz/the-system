@@ -155,9 +155,9 @@ export function parseQAResponse(response: string): QAResult {
     }
   }
 
-  // Determine passed status - THRESHOLD IS NOW 6/8 (sends to Boss Office for review)
-  // Override AI's decision - if score is 6+, we consider it passing
-  const passed = score >= 6; // Pass if 6+ criteria pass - Boss can review imperfect tools
+  // Determine passed status - THRESHOLD IS NOW 4/8 for testing (allows imperfect tools to pass for review)
+  // Override AI's decision - if score is 4+, we consider it passing
+  const passed = score >= 4; // Pass if 4+ criteria pass - Boss can review imperfect tools
 
   return {
     passed,

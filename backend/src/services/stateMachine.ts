@@ -27,7 +27,7 @@ import logger from '../utils/logger';
  *
  * Updated for spec 016-backend-api with 10 statuses
  */
-export const VALID_TRANSITIONS: Map<JobStatus | null, JobStatus[]> = new Map([
+export const VALID_TRANSITIONS = new Map<JobStatus | null, JobStatus[]>([
   // Initial submission
   [null, [JobStatus.SENT]],
 

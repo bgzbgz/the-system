@@ -14,7 +14,8 @@ export {
   disconnectDB,
   checkConnection,
   getCollection,
-  getToolResponseCollectionName,
+  getToolCollectionName,
+  getToolResponseCollectionName, // @deprecated - use getToolCollectionName
   COLLECTIONS
 } from './connection';
 
@@ -141,11 +142,47 @@ export type {
   ToolResponseListResponse
 } from './models/toolResponse';
 
+// Feature 021: Unified tool collection model
+export {
+  TOOL_DOC_TYPES,
+  isDefaults,
+  isResponse,
+  createDefaultsDocument,
+  createResponseDocument as createUnifiedResponseDocument,
+  defaultsToResponse,
+  responseToApiResponse
+} from './models/toolCollection';
+export type {
+  ToolDocType,
+  ToolDefaults,
+  ToolResponse as UnifiedToolResponse,
+  ToolCollectionDocument,
+  Question,
+  TermDefinition,
+  Framework,
+  ExpertQuote,
+  InputRange,
+  CourseContext,
+  QualityGate,
+  ResponseStatus,
+  AnalysisReference,
+  CreateDefaultsInput,
+  CreateResponseInput as CreateUnifiedResponseInput,
+  ToolDefaultsResponse,
+  ToolResponseApiResponse
+} from './models/toolCollection';
+
 // ========== SERVICES ==========
 export * as jobStore from './services/jobStore';
 export * as auditService from './services/auditService';
 export * as contextService from './services/contextService';
+
+// Feature 021: Unified tool collection service (primary)
+export * as toolCollectionService from './services/toolCollectionService';
+
+// @deprecated - Use toolCollectionService instead (Feature 021)
 export * as deployedToolService from './services/deployedToolService';
+// @deprecated - Use toolCollectionService instead (Feature 021)
 export * as responseService from './services/responseService';
 
 // Re-export common types from services

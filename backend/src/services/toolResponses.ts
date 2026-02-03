@@ -9,7 +9,7 @@
 import { Collection, ObjectId, Document } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
-import { getDB, isConnected } from '../config/database';
+import { getDB, isConnected } from '../db/connection';
 import logger from '../utils/logger';
 
 // ========== TYPES ==========

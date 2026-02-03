@@ -21,16 +21,20 @@ export enum CategoryType {
  * Spec: 016-backend-api - 10 statuses aligned with spec
  */
 export enum JobStatus {
-  SENT = 'SENT',                         // Initial: submitted to workflow
-  PROCESSING = 'PROCESSING',             // Workflow is building tool
-  QA_FAILED = 'QA_FAILED',               // Failed automated QA checks
-  ESCALATED = 'ESCALATED',               // Requires manual intervention
-  READY_FOR_REVIEW = 'READY_FOR_REVIEW', // Ready for Boss review
+  DRAFT = 'DRAFT',                         // Not yet submitted
+  FAILED_SEND = 'FAILED_SEND',             // Failed to send to workflow
+  SENT = 'SENT',                           // Initial: submitted to workflow
+  PROCESSING = 'PROCESSING',               // Workflow is building tool
+  FACTORY_FAILED = 'FACTORY_FAILED',       // Factory processing failed
+  QA_FAILED = 'QA_FAILED',                 // Failed automated QA checks
+  ESCALATED = 'ESCALATED',                 // Requires manual intervention
+  READY_FOR_REVIEW = 'READY_FOR_REVIEW',   // Ready for Boss review
   REVISION_REQUESTED = 'REVISION_REQUESTED', // Boss requested changes
-  DEPLOYING = 'DEPLOYING',               // Deployment in progress
-  DEPLOYED = 'DEPLOYED',                 // Successfully deployed
-  DEPLOY_FAILED = 'DEPLOY_FAILED',       // Deployment failed
-  REJECTED = 'REJECTED'                  // Boss rejected
+  DEPLOY_REQUESTED = 'DEPLOY_REQUESTED',   // Deployment requested
+  DEPLOYING = 'DEPLOYING',                 // Deployment in progress
+  DEPLOYED = 'DEPLOYED',                   // Successfully deployed
+  DEPLOY_FAILED = 'DEPLOY_FAILED',         // Deployment failed
+  REJECTED = 'REJECTED'                    // Boss rejected
 }
 
 /**

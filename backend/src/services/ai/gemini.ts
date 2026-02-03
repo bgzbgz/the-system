@@ -15,6 +15,7 @@ import logger from '../../utils/logger';
 
 const GEMINI_MODEL = 'gemini-2.0-flash';
 const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_TIMEOUT_MS = 120000; // 2 minutes timeout for API calls
 
 // ========== GEMINI PROVIDER ==========
 
@@ -75,14 +76,22 @@ export class GeminiProvider implements IAIProvider {
         },
       });
 
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: request.userPrompt }],
-          },
-        ],
+      // Wrap API call with timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Gemini API timeout after 120s')), DEFAULT_TIMEOUT_MS);
       });
+
+      const result = await Promise.race([
+        model.generateContent({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: request.userPrompt }],
+            },
+          ],
+        }),
+        timeoutPromise
+      ]);
 
       const durationMs = Date.now() - startTime;
 

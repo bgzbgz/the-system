@@ -80,25 +80,51 @@ STEP 1: IDENTIFY THE DECISION
 From the course analysis, what decision must the user make?
 The tool's ENTIRE PURPOSE is to reach that decision.
 
-STEP 2: MAP FRAMEWORK TO INPUTS
-If course teaches: "Market Size = Customers × Spending × Purchases"
-Then tool asks: Number of customers, Average spending, Purchase frequency
-User provides THEIR numbers, not textbook examples.
+STEP 2: USE THE DEEP CONTENT (CRITICAL FOR DEPTH)
+The course analysis includes "deepContent" with:
+- keyTerminology: USE THESE EXACT TERMS in labels, tooltips, and section headers
+- reflectionQuestions: TURN THESE INTO TOOL INPUTS - they're pre-validated by course design
+- expertWisdom: QUOTE THE EXPERTS in tooltips or result interpretation
+- bookReferences: MENTION IN CONTEXT when relevant
+- sprintChecklist: USE AS VALIDATION CRITERIA for tool completion
+- conceptsToLearn/decisionsToMake/processesToImplement: ORGANIZE THE TOOL around these
 
-STEP 3: DESIGN INPUT VALIDATION
+Example of DEEP vs SHALLOW:
+SHALLOW: "Enter your monthly revenue" (generic)
+DEEP: "YOUR POWER OF ONE LEVER 1: Monthly Revenue - How does 1% improvement here impact cash flow?" (uses course terminology)
+
+STEP 3: MAP FRAMEWORK TO INPUTS (MANDATORY - VALIDATION ENFORCED)
+⚠️ CRITICAL: If the course analysis contains a numberedFramework (e.g., "7 Levers", "5 Steps"),
+you MUST create ONE INPUT FOR EACH framework item. This is validated and will FAIL if missing.
+
+Rules for framework-to-input mapping:
+1. For EVERY item in deepContent.numberedFramework.items, create a corresponding input
+2. Use the item's toolInputLabel as the input label VERBATIM
+3. Include the item's definition in the helpText
+4. If the framework has 7 items, you need 7 inputs minimum
+
+Example: If course teaches "Power of One" with 7 Levers:
+- Input 1: "LEVER 1: YOUR CURRENT PRICE" (from item.toolInputLabel)
+- Input 2: "LEVER 2: YOUR ANNUAL VOLUME" (from item.toolInputLabel)
+- ... continue for all 7 levers
+
+User provides THEIR numbers, sees how small changes impact their cash flow.
+
+STEP 4: DESIGN INPUT VALIDATION
 Each input must:
-- Have a clear label (day-to-day language)
+- Have a clear label using COURSE TERMINOLOGY where possible
 - Have a placeholder with realistic example
-- Have help text explaining what to enter
+- Have help text that REFERENCES THE COURSE CONCEPT
 - Have validation rules (min/max, required, format)
-- Reference back to course content
+- Connect to a specific REFLECTION QUESTION from the course when available
 
-STEP 4: DESIGN THE OUTPUT
+STEP 5: DESIGN THE OUTPUT
 The result must:
 - MEAN something (not just a number)
-- Include interpretation: "This is a LARGE market" or "Too small to pursue"
-- Include the VERDICT: "GO - Enter this market" or "NO-GO - Look elsewhere"
-- Include NEXT ACTION: "Your next step is: [specific action]"
+- Include interpretation USING COURSE LANGUAGE: "Your Cash Flow Story shows..." or "Based on the Power of One analysis..."
+- Include the VERDICT: "GO - Your cash flow supports this" or "NO-GO - Address the 7 Levers first"
+- Include NEXT ACTION tied to course framework: "Focus on Lever 3 (Margins) to improve your Power of One score"
+- Include EXPERT QUOTE when appropriate: "As Alan Miltz says, 'Cash flow is the oxygen of a company'"
 
 OUTPUT FORMAT (JSON):
 {
@@ -121,7 +147,7 @@ OUTPUT FORMAT (JSON):
     {
       "name": "fieldName",
       "type": "number|text|select|textarea",
-      "label": "Clear, day-to-day language label",
+      "label": "Clear label using COURSE TERMINOLOGY where relevant",
       "placeholder": "Realistic example value",
       "helpText": "What this is and how to find it (max 15 words)",
       "required": true,
@@ -131,6 +157,8 @@ OUTPUT FORMAT (JSON):
         "pattern": "regex pattern (for text)"
       },
       "courseReference": "This comes from [specific section]",
+      "courseTerminology": "The specific course term this relates to (e.g., 'Power of One Lever 1')",
+      "reflectionQuestionBasis": "The reflection question from the course this input answers",
       "feedbackRules": {
         "good": "When input is valid",
         "warning": "When input needs attention",
@@ -176,8 +204,90 @@ OUTPUT FORMAT (JSON):
     "moduleObjective": "What the course wanted students to learn",
     "toolDelivery": "How this tool ensures they apply it",
     "knowledgeReinforcement": "What concepts get reinforced"
-  }
+  },
+  "deepContentIntegration": {
+    "terminologyUsed": ["List of course terms used in labels/tooltips"],
+    "expertQuoteToDisplay": {
+      "quote": "The most impactful quote to show in results",
+      "source": "Expert name",
+      "displayLocation": "Where in the tool (results section, tooltip, header)"
+    },
+    "sprintChecklistValidation": [
+      {
+        "checklistItem": "We understand how the seven Cash Flow levers impact cash flow",
+        "howToolValidates": "By asking user to enter each lever and showing impact"
+      }
+    ],
+    "frameworkVisualization": "How the tool visualizes the course framework (e.g., '7 Levers shown as progress bars')",
+    "reflectionQuestionsAnswered": ["List of course reflection questions the tool helps answer"]
+  },
+
+  // ========== MULTI-PHASE WIZARD DESIGN (Required for course-based tools) ==========
+  "phases": [
+    {
+      "id": "unique-phase-id",
+      "name": "Phase Display Name",
+      "description": "Brief explanation shown to user (max 20 words)",
+      "order": 1,
+      "inputIds": ["fieldName1", "fieldName2"],
+      "summaryTemplate": "You're a {{companySize}} company in {{industry}} facing {{mainChallenge}}.",
+      "teachingMomentTag": "optional-tag-to-match-expertWisdom",
+      "branchConditions": [
+        {
+          "sourceField": "fieldName",
+          "operator": "equals|not_equals|gt|gte|lt|lte|contains|not_contains",
+          "targetValue": "value or number",
+          "action": "show|hide",
+          "targetPhase": "phase-id-to-show-or-hide"
+        }
+      ]
+    }
+  ],
+  "defaultPhasePath": ["context", "data", "analysis", "decision"]
 }
+
+MANDATORY DESIGN REQUIREMENTS (VALIDATION ENFORCED):
+⚠️ The following will be validated. Design will FAIL if requirements not met:
+
+1. **Framework Item Mapping** - REQUIRED if analysis has numberedFramework
+   - You MUST create one input for EACH item in deepContent.numberedFramework.items
+   - Use toolInputLabel from each item as the input label
+   - Framework with 7 items = minimum 7 inputs
+   - Missing inputs = validation failure, tool generation blocked
+
+2. **Expert Quote Integration** - STRONGLY RECOMMENDED
+   - If analysis has deepContent.expertWisdom quotes, include in deepContentIntegration.expertQuoteToDisplay
+   - Specify displayLocation (results section, tooltip, or header)
+   - Adds credibility and course correlation to the tool
+
+3. **Terminology Usage** - REQUIRED (minimum 2 terms)
+   - Use terms from deepContent.keyTerminology in your input labels and help text
+   - List all used terms in deepContentIntegration.terminologyUsed array
+   - Generic labels when course terminology exists = validation warning
+
+4. **Multi-Phase Wizard Design** - REQUIRED for course-based tools
+   - Design 3-5 phases that guide the user through the methodology
+   - Each phase focuses on one aspect: Context → Data → Analysis → Decision → Commitment
+   - Maximum 6 inputs per phase (progressive disclosure)
+   - At least one branch condition per tool (adaptive paths)
+   - Every phase MUST have a summaryTemplate with {{fieldName}} placeholders
+
+PHASE DESIGN RULES:
+1. MINIMUM 3 PHASES: Context (who they are), Analysis (their numbers), Decision (the verdict)
+2. MAXIMUM 5 PHASES: Don't overwhelm - each phase is a focused step
+3. MAXIMUM 6 INPUTS PER PHASE: Keep each step simple and achievable
+4. PHASE NAMES: User-friendly ("Your Situation" not "context_input_phase")
+5. SUMMARY TEMPLATES: Must reference ONLY inputs from that phase using {{fieldName}}
+6. BRANCH CONDITIONS: At least one condition that adapts the tool to user's situation
+7. TEACHING MOMENT TAGS: Match tags to expertWisdom entries for contextual teaching
+8. INPUT DISTRIBUTION: All inputs from the "inputs" array MUST belong to exactly one phase
+
+PHASE ORDER CONVENTION:
+- Phase 1: Context/Situation (easy questions about who they are)
+- Phase 2: Data/Numbers (the hard data they need to gather)
+- Phase 3: Analysis (intermediate calculations, key findings)
+- Phase 4: Decision (the GO/NO-GO verdict)
+- Phase 5: Commitment (optional - WWW action plan)
 
 DESIGN PRINCIPLES:
 1. MINIMUM VIABLE TOOL - Only inputs absolutely necessary for the decision

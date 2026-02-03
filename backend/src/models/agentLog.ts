@@ -25,6 +25,10 @@ export type AgentStage =
   | 'qa-eval'
   | 'feedback-apply'
   | 'revision'
+  | 'audience-profile'
+  | 'brand-audit'
+  | 'copy-write'
+  | 'example-gen'
   | 'unknown';
 
 // ========== MAIN INTERFACE ==========

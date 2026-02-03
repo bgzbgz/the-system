@@ -6,7 +6,7 @@
  * CRUD operations for jobs collection with status transition validation
  */
 
-import { Collection, Document } from 'mongodb';
+import { Collection, ObjectId } from 'mongodb';
 import { getDB, COLLECTIONS } from '../connection';
 import { generateUUID } from '../utils/uuid';
 import {
@@ -23,13 +23,33 @@ import { CreateRevisionInput, createRevision } from '../models/revision';
 import { JobStatus, canTransition, getTransitionError } from '../types/status';
 import * as auditService from './auditService';
 
+// Helper to convert MongoDB document to typed Job
+function toJob(doc: unknown): Job | null {
+  if (!doc) return null;
+  const d = doc as Record<string, unknown>;
+  if (d._id instanceof ObjectId) {
+    return { ...d, _id: d._id.toString() } as unknown as Job;
+  }
+  return d as unknown as Job;
+}
+
+function toJobs(docs: unknown[]): Job[] {
+  return docs.map(doc => {
+    const d = doc as Record<string, unknown>;
+    if (d._id instanceof ObjectId) {
+      return { ...d, _id: d._id.toString() } as unknown as Job;
+    }
+    return d as unknown as Job;
+  });
+}
+
 // ========== COLLECTION ACCESS ==========
 
 /**
  * Get jobs collection
  */
-function getJobsCollection(): Collection<Job & Document> {
-  return getDB().collection<Job & Document>(COLLECTIONS.JOBS);
+function getJobsCollection(): Collection {
+  return getDB().collection(COLLECTIONS.JOBS);
 }
 
 // ========== CREATE ==========
@@ -47,7 +67,7 @@ export async function createJob(input: CreateJobInput, logAudit: boolean = true)
   const jobId = generateUUID();
   const jobDoc = createJobDocument(jobId, input);
 
-  await collection.insertOne(jobDoc as Job & Document);
+  await collection.insertOne(jobDoc);
 
   const job = { ...jobDoc, job_id: jobId } as Job;
 
@@ -74,7 +94,7 @@ export async function createJob(input: CreateJobInput, logAudit: boolean = true)
 export async function findByJobId(jobId: string): Promise<Job | null> {
   const collection = getJobsCollection();
   const job = await collection.findOne({ job_id: jobId });
-  return job as Job | null;
+  return toJob(job);
 }
 
 /**
@@ -86,7 +106,7 @@ export async function findByJobId(jobId: string): Promise<Job | null> {
 export async function findByStatus(status: JobStatus): Promise<Job[]> {
   const collection = getJobsCollection();
   const jobs = await collection.find({ status }).sort({ created_at: -1 }).toArray();
-  return jobs as Job[];
+  return toJobs(jobs);
 }
 
 /**
@@ -116,7 +136,7 @@ export async function findAll(options: {
 
   const filter = status ? { status } : {};
 
-  const [jobs, total] = await Promise.all([
+  const [rawJobs, total] = await Promise.all([
     collection.find(filter)
       .sort({ created_at: -1 })
       .skip(offset)
@@ -125,7 +145,7 @@ export async function findAll(options: {
     collection.countDocuments(filter)
   ]);
 
-  return { jobs: jobs as Job[], total };
+  return { jobs: toJobs(rawJobs), total };
 }
 
 // ========== UPDATE STATUS ==========
@@ -192,7 +212,7 @@ export async function updateStatus(
     await auditService.logStatusChanged(jobId, previousStatus, newStatus);
   }
 
-  return { success: true, job: result as Job };
+  return { success: true, job: toJob(result) as Job };
 }
 
 // ========== QA REPORTS ==========
@@ -221,10 +241,10 @@ export async function appendQAReport(jobId: string, input: CreateQAReportInput):
   const result = await collection.findOneAndUpdate(
     { job_id: jobId },
     {
-      $push: { qa_reports: report },
+      $push: { qa_reports: report as unknown },
       $inc: { qa_attempts: 1 },
       $set: { updated_at: new Date() }
-    },
+    } as Record<string, unknown>,
     { returnDocument: 'after' }
   );
 
@@ -232,7 +252,7 @@ export async function appendQAReport(jobId: string, input: CreateQAReportInput):
     return { success: false, error: 'Update failed' };
   }
 
-  return { success: true, job: result as Job };
+  return { success: true, job: toJob(result) as Job };
 }
 
 // ========== REVISIONS ==========
@@ -258,9 +278,9 @@ export async function appendRevision(jobId: string, input: CreateRevisionInput):
   const result = await collection.findOneAndUpdate(
     { job_id: jobId },
     {
-      $push: { revisions: revision },
+      $push: { revisions: revision as unknown },
       $set: { updated_at: new Date() }
-    },
+    } as Record<string, unknown>,
     { returnDocument: 'after' }
   );
 
@@ -268,7 +288,7 @@ export async function appendRevision(jobId: string, input: CreateRevisionInput):
     return { success: false, error: 'Update failed' };
   }
 
-  return { success: true, job: result as Job };
+  return { success: true, job: toJob(result) as Job };
 }
 
 /**
@@ -307,7 +327,7 @@ export async function completeLatestRevision(jobId: string): Promise<UpdateResul
     return { success: false, error: 'Update failed' };
   }
 
-  return { success: true, job: result as Job };
+  return { success: true, job: toJob(result) as Job };
 }
 
 // ========== DEPLOYMENT ==========
@@ -343,7 +363,7 @@ export async function updateDeployment(jobId: string, deployedUrl: string): Prom
     return { success: false, error: 'Update failed' };
   }
 
-  return { success: true, job: result as Job };
+  return { success: true, job: toJob(result) as Job };
 }
 
 // ========== FACTORY OUTPUT ==========
@@ -389,7 +409,7 @@ export async function updateFactoryOutput(
     return { success: false, error: 'Update failed' };
   }
 
-  return { success: true, job: result as Job };
+  return { success: true, job: toJob(result) as Job };
 }
 
 // ========== ERROR HANDLING ==========

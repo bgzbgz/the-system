@@ -6,7 +6,7 @@
  * All logs include jobId for traceability.
  */
 
-import { PipelineContext, StageName, StageOutput } from './types';
+import { PipelineContext, StageName, StageOutput, ValidationResult, ValidationStage } from './types';
 
 // ========== PIPELINE LIFECYCLE ==========
 
@@ -201,4 +201,77 @@ export function logRetryAttempt(
  */
 export function logValidationError(jobId: string, field: string, message: string): void {
   console.error(`[Factory] Validation error (job: ${jobId}): ${field} - ${message}`);
+}
+
+// ========== VALIDATION RESULTS (017-bulletproof-factory) ==========
+
+/**
+ * Log validation result for extraction, design, or output validation
+ *
+ * @param jobId - Job identifier
+ * @param result - Validation result
+ */
+export function logValidationResult(jobId: string, result: ValidationResult): void {
+  const stageLabel = getValidationStageLabel(result.stage);
+  const status = result.passed ? 'PASS' : 'FAIL';
+  const errorCount = result.errors.length;
+  const warningCount = result.warnings.length;
+
+  console.log(
+    `[Factory] Validation [${stageLabel}]: ${status} (${errorCount} errors, ${warningCount} warnings) (job: ${jobId})`
+  );
+
+  // Log individual errors
+  if (errorCount > 0) {
+    for (const error of result.errors) {
+      console.error(`[Factory]   ❌ [${error.code}] ${error.message.split('\n')[0]}`);
+    }
+  }
+
+  // Log warnings at debug level
+  if (warningCount > 0 && process.env.DEBUG === 'true') {
+    for (const warning of result.warnings) {
+      console.warn(`[Factory]   ⚠️ [${warning.code}] ${warning.message.split('\n')[0]}`);
+    }
+  }
+}
+
+/**
+ * Log extraction metadata summary
+ *
+ * @param jobId - Job identifier
+ * @param metadata - Extraction metadata
+ */
+export function logExtractionMetadata(
+  jobId: string,
+  metadata: {
+    frameworkItemCount: number;
+    frameworkName: string | null;
+    terminologyCount: number;
+    quoteCount: number;
+  }
+): void {
+  const frameworkInfo = metadata.frameworkName
+    ? `"${metadata.frameworkName}" (${metadata.frameworkItemCount} items)`
+    : 'none';
+
+  console.log(
+    `[Factory] Extraction summary: framework=${frameworkInfo}, terminology=${metadata.terminologyCount}, quotes=${metadata.quoteCount} (job: ${jobId})`
+  );
+}
+
+/**
+ * Get human-readable label for validation stage
+ */
+function getValidationStageLabel(stage: ValidationStage): string {
+  switch (stage) {
+    case 'extraction':
+      return 'Course Analysis';
+    case 'design':
+      return 'Tool Design';
+    case 'output':
+      return 'HTML Output';
+    default:
+      return stage;
+  }
 }
