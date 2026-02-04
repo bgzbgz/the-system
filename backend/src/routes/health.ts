@@ -13,7 +13,7 @@ import {
   isConfigurationValid
 } from '../config/config';
 import { ConfigurationState, HealthResponse } from '../config/types';
-import { testConnection, isSupabaseConfigured, supabase } from '../db/supabase';
+import { testConnection, isSupabaseConfigured, getSupabase } from '../db/supabase';
 import logger from '../utils/logger';
 
 // ========== ROUTER ==========
@@ -33,6 +33,8 @@ async function checkCompoundingWorkHealth(): Promise<{
   error?: string;
 }> {
   try {
+    const supabase = getSupabase();
+
     // Check if schema_fields table exists and has data
     const { data, error } = await supabase
       .from('schema_fields')
