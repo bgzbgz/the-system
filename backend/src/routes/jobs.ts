@@ -132,7 +132,7 @@ router.post('/',
       toolFactory.processRequest({
         jobId,
         userRequest
-      }).then(result => {
+      }).then(async (result) => {
         logger.logOperation({
           operation: 'FACTORY_COMPLETED',
           job_id: jobId,
@@ -645,7 +645,7 @@ router.post('/:jobId/revise',
       toolFactory.processRequest({
         jobId,
         userRequest
-      }).then(factoryResult => {
+      }).then(async (factoryResult) => {
         logger.logOperation({
           operation: 'REVISION_COMPLETED',
           job_id: jobId,
