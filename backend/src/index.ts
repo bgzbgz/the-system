@@ -27,6 +27,9 @@ import toolLaunchRouter from './routes/toolLaunch';
 import toolEmbedRouter from './routes/toolEmbed';
 import toolResponsesRouter from './routes/tools';
 import automationWebhookRouter from './routes/automationWebhook';
+import fieldResponsesRouter from './routes/fieldResponses';
+import progressRouter from './routes/progress';
+import toolServingRouter from './routes/toolServing';
 import qualityRouter from './routes/quality';
 import patternsRouter from './routes/patterns';
 import suggestionsRouter from './routes/suggestions';
@@ -34,6 +37,7 @@ import experimentsRouter from './routes/experiments';
 import configGuard from './middleware/configGuard';
 import corsMiddleware from './middleware/cors';
 import { requestLogger, lightRequestLogger } from './middleware/requestLogger';
+import { apiLimiter, strictLimiter, fieldSaveLimiter, webhookLimiter } from './middleware/rateLimit';
 import { seedExampleJobs } from './services/jobStore';
 import { startupDatabase, shutdownDatabase, getDatabaseStatus } from './db/startup';
 import { testConnection as testSupabaseConnection, isSupabaseConfigured } from './db/supabase';
@@ -41,6 +45,7 @@ import logger from './utils/logger';
 import { aiService } from './services/ai';
 import { initializePrompts } from './prompts';
 import { preloadAllContext } from './context';
+import { initializePromptLoader } from './services/promptLoader';
 import { toolFactory } from './services/factory/index';
 import { githubService } from './services/github';
 import { ensureIndexes as ensureLogStoreIndexes, TTL_DAYS as LOG_TTL_DAYS } from './services/logStore';
@@ -96,6 +101,9 @@ app.use(corsMiddleware);
 // Parse JSON bodies (with 10MB limit for tool_html)
 app.use(express.json({ limit: '10mb' }));
 
+// Rate limiting (applied before routes)
+app.use('/api', apiLimiter); // General API limit: 100 req/15min
+
 // Request logging (T061 - use light logger for high-volume, full logger for jobs/audit)
 app.use('/api/jobs', requestLogger);
 app.use('/api/audit', requestLogger);
@@ -115,7 +123,8 @@ app.use('/api/jobs', jobsRouter);
 app.use('/api/audit', auditRouter);
 
 // Factory routes - protected by configGuard for core operations
-app.use('/api/factory', factoryRouter);
+// Apply strict rate limit: 20 requests per 15 minutes (expensive AI operations)
+app.use('/api/factory', strictLimiter, factoryRouter);
 
 // Callbacks routes - for n8n workflow callbacks (spec 016-backend-api)
 app.use('/api/factory', callbacksRouter);
@@ -124,7 +133,8 @@ app.use('/api/factory', callbacksRouter);
 app.use('/api/principles', principlesRouter);
 
 // LearnWorlds routes - webhook receiver and health check (spec 001-learnworlds-auth-bridge)
-app.use('/api/learnworlds', learnworldsRouter);
+// Apply webhook rate limit: 200 requests per 15 minutes
+app.use('/api/learnworlds', webhookLimiter, learnworldsRouter);
 
 // Tool Launch routes - secure tool access from LearnWorlds
 app.use('/api/tools', toolLaunchRouter);
@@ -132,11 +142,23 @@ app.use('/api/tools', toolLaunchRouter);
 // Tool Responses routes - save/retrieve tool responses (spec 026-tool-response-api, feature 021)
 app.use('/api/tools', toolResponsesRouter);
 
+// Field Responses routes - field-by-field response storage (feature 001-compounding-client-work)
+// Apply field save rate limit: 50 saves per 5 minutes (prevents auto-save spam)
+app.use('/api/field-responses', fieldSaveLimiter);
+app.use('/api', fieldResponsesRouter);
+
+// Progress routes - user progress tracking across sprints (feature 001-compounding-client-work)
+app.use('/api', progressRouter);
+
+// Tool Serving routes - dynamic tool serving with dependencies (feature 001-compounding-client-work)
+app.use('/', toolServingRouter);
+
 // Tool Embed routes - embeddable widgets for LearnWorlds courses
 app.use('/api/embed', toolEmbedRouter);
 
 // Automation webhook routes - receives LearnWorlds automation webhooks
-app.use('/api/automation', automationWebhookRouter);
+// Apply webhook rate limit: 200 requests per 15 minutes
+app.use('/api/automation', webhookLimiter, automationWebhookRouter);
 
 // Quality routes - quality scoring and prompt version management (spec 020-self-improving-factory)
 app.use('/api/quality', qualityRouter);
@@ -252,6 +274,19 @@ async function startServer(): Promise<void> {
   initializePrompts();
   preloadAllContext();
   console.log('[Startup] Context documents loaded: approach, criteria, feedback');
+
+  // Step 2b-ii: Initialize Prompt Loader (GitHub repository)
+  if (process.env.PROMPTS_REPO_OWNER && process.env.PROMPTS_REPO_NAME) {
+    const promptLoader = initializePromptLoader({
+      repoOwner: process.env.PROMPTS_REPO_OWNER,
+      repoName: process.env.PROMPTS_REPO_NAME,
+      branch: process.env.PROMPTS_REPO_BRANCH || 'main'
+    });
+    await promptLoader.preloadAllPrompts();
+    console.log('[Startup] Prompts loaded from GitHub repository');
+  } else {
+    console.log('[Startup] Using hardcoded prompts (GitHub repo not configured)');
+  }
 
   // Step 2c: Verify Tool Factory Engine (spec 021-tool-factory-engine)
   console.log('[Startup] Tool Factory Engine ready');

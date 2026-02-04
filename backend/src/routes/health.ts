@@ -13,12 +13,56 @@ import {
   isConfigurationValid
 } from '../config/config';
 import { ConfigurationState, HealthResponse } from '../config/types';
-import { testConnection, isSupabaseConfigured } from '../db/supabase';
+import { testConnection, isSupabaseConfigured, supabase } from '../db/supabase';
 import logger from '../utils/logger';
 
 // ========== ROUTER ==========
 
 const router = Router();
+
+// ========== HELPER FUNCTIONS ==========
+
+/**
+ * Check Feature 001 (Compounding Work System) health
+ * Tests if compounding work tables are accessible and contain data
+ */
+async function checkCompoundingWorkHealth(): Promise<{
+  status: 'healthy' | 'unavailable' | 'error';
+  tables?: string[];
+  field_count?: number;
+  error?: string;
+}> {
+  try {
+    // Check if schema_fields table exists and has data
+    const { data, error } = await supabase
+      .from('schema_fields')
+      .select('id', { count: 'exact', head: false })
+      .limit(1);
+
+    if (error) {
+      return {
+        status: 'unavailable',
+        error: error.message
+      };
+    }
+
+    // Get total field count
+    const { count: fieldCount } = await supabase
+      .from('schema_fields')
+      .select('*', { count: 'exact', head: true });
+
+    return {
+      status: 'healthy',
+      tables: ['schema_fields', 'client_field_responses', 'user_tool_progress'],
+      field_count: fieldCount || 0
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
 
 // ========== ROUTES ==========
 
@@ -62,6 +106,18 @@ router.get('/health', async (req: Request, res: Response) => {
       };
     }
 
+    // Check Feature 001 (Compounding Work System) health
+    let compoundingWorkCheck: {
+      status: 'healthy' | 'unavailable' | 'error';
+      tables?: string[];
+      field_count?: number;
+      error?: string;
+    } = { status: 'unavailable' };
+
+    if (dbCheck.status === 'connected') {
+      compoundingWorkCheck = await checkCompoundingWorkHealth();
+    }
+
     // Determine overall health status
     // Healthy as long as server is running - Supabase is optional
     // Config errors are acceptable (will block some operations but server is still "up")
@@ -72,7 +128,8 @@ router.get('/health', async (req: Request, res: Response) => {
       status: isHealthy ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
       checks: {
-        database: dbCheck
+        database: dbCheck,
+        compounding_work: compoundingWorkCheck
       },
       version: '1.0.0',
       // Include legacy fields for backward compatibility
