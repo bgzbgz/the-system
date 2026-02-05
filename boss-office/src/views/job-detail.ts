@@ -2,7 +2,7 @@
 // Feature: Boss Office Redesign
 
 import { setCurrentJob, setCurrentJobLoading, showSuccess, showError, updateJobInList } from '../store/actions.ts';
-import { getJob, approveJob, requestRevision, rejectJob } from '../api/jobs.ts';
+import { getJob, approveJob, requestRevision, rejectJob, cancelJob } from '../api/jobs.ts';
 import { navigate } from '../utils/router.ts';
 import { renderPipelineVisualizer, mapJobStatusToPipeline, calculateProgress } from '../components/pipeline-visualizer.ts';
 import type { Job, JobStatus } from '../types/index.ts';
@@ -200,6 +200,9 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
           <div class="job-detail__processing-notice">
             <div class="spinner"></div>
             <span>Processing... This page will update automatically.</span>
+            <button class="btn btn--danger btn--small job-detail__cancel-btn" style="margin-left: 16px;">
+              CANCEL
+            </button>
           </div>
         ` : ''}
 
@@ -407,6 +410,27 @@ function attachJobDetailListeners(container: HTMLElement, job: Job): void {
       const isCollapsed = previewContainer.classList.contains('tool-preview--collapsed');
       previewContainer.classList.toggle('tool-preview--collapsed');
       previewToggle.textContent = isCollapsed ? 'COLLAPSE' : 'EXPAND';
+    }
+  });
+
+  // Cancel button (for stuck deployments/processing)
+  const cancelBtn = container.querySelector<HTMLButtonElement>('.job-detail__cancel-btn');
+  cancelBtn?.addEventListener('click', async () => {
+    if (!confirm('Cancel this job? It will be moved back to review.')) return;
+
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = 'CANCELLING...';
+
+    try {
+      await cancelJob(job._id);
+      showSuccess('Job cancelled');
+      if (currentContainer && currentJobId) {
+        renderJobDetailView(currentContainer, currentJobId);
+      }
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Failed to cancel');
+      cancelBtn.disabled = false;
+      cancelBtn.textContent = 'CANCEL';
     }
   });
 }

@@ -863,6 +863,59 @@ router.post('/:jobId/request-revision',
   }
 );
 
+// ========== CANCEL ENDPOINT ==========
+
+/**
+ * POST /api/jobs/:jobId/cancel
+ * Cancel a stuck deployment or processing job
+ * Transitions: DEPLOYING, PROCESSING → READY_FOR_REVIEW (if has tool_html) or QA_FAILED
+ */
+router.post('/:jobId/cancel', async (req: Request, res: Response) => {
+  const { jobId } = req.params;
+
+  try {
+    const job = await jobService.getJob(jobId);
+
+    if (!job) {
+      return sendNotFound(res, 'Job not found');
+    }
+
+    // Only allow cancelling DEPLOYING or PROCESSING jobs
+    if (job.status !== JobStatus.DEPLOYING && job.status !== JobStatus.PROCESSING) {
+      return sendInvalidTransition(res, `Cannot cancel job in ${job.status} status. Only DEPLOYING or PROCESSING jobs can be cancelled.`);
+    }
+
+    // Check if job has tool_html to determine target status
+    const toolHtml = await jobArtifactService.getToolHtml(jobId);
+    const targetStatus = toolHtml ? JobStatus.READY_FOR_REVIEW : JobStatus.QA_FAILED;
+
+    // Update job status
+    await jobService.updateJob(jobId, {
+      status: targetStatus,
+      workflow_error: 'Cancelled by user'
+    });
+
+    logger.logOperation({
+      operation: 'JOB_CANCELLED',
+      job_id: jobId,
+      status: targetStatus,
+      actor: 'BOSS',
+      details: { previous_status: job.status }
+    });
+
+    sendSuccess(res, {
+      success: true,
+      job_id: jobId,
+      status: targetStatus,
+      message: `Job cancelled and moved to ${targetStatus}`
+    });
+
+  } catch (error) {
+    logger.logError('Error cancelling job', error as Error, { job_id: jobId });
+    sendInternalError(res);
+  }
+});
+
 // ========== ADMIN ENDPOINT (TEMPORARY FOR DEMO) ==========
 
 /**

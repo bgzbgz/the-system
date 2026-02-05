@@ -286,6 +286,20 @@ export async function rejectJob(jobId: string, reason: string = 'Rejected by bos
   return response;
 }
 
+// Cancel response shape from backend
+interface CancelResponse {
+  success: boolean;
+  job_id: string;
+  status: string;
+  message: string;
+}
+
+// Cancel a stuck deployment or processing job
+export async function cancelJob(jobId: string): Promise<CancelResponse> {
+  const response = await api.post<CancelResponse>(`/jobs/${jobId}/cancel`);
+  return response;
+}
+
 // Export all functions as named exports for tree-shaking
 export const jobsApi = {
   list: listJobs,
@@ -294,4 +308,5 @@ export const jobsApi = {
   approve: approveJob,
   revise: requestRevision,
   reject: rejectJob,
+  cancel: cancelJob,
 };
