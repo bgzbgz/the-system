@@ -10,8 +10,8 @@ import path from 'path';
 
 const router = Router();
 
-// Path to the principles folder
-const PRINCIPLES_PATH = path.resolve(__dirname, '../../../the three principles');
+// Path to the principles folder (inside backend directory for deployment)
+const PRINCIPLES_PATH = path.resolve(__dirname, '../../the three principles');
 
 interface PrincipleDocument {
   id: string;
