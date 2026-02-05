@@ -26,7 +26,8 @@ const ALLOWED_ORIGINS = [
   'http://localhost:8080',
   // GitHub Pages - deployed tools
   'https://bgzbgz.github.io',
-  // Add production domains here
+  // Railway production - Boss Office frontend
+  'https://bossoffice.up.railway.app',
 ];
 
 /**
