@@ -31,11 +31,22 @@ export const toolBuilderStage: Stage<ToolBuilderInput, ToolBuilderOutput> = {
     const prompt = getPrompt('toolBuilder');
     const criteriaContext = loadContext('criteria');
 
+    // Detect mode early to optimize prompt
+    const isWizardMode = isMultiPhaseSpec(input.toolSpec);
+
     // Build the full system prompt with context
+    // Use compact mode-specific prompt to reduce token usage
     const systemPrompt = `${prompt.systemPrompt}\n\n## Quality Criteria\n\n${criteriaContext}`;
 
-    // Build user message with tool spec and optional template
-    let userMessage = `## Tool Specification\n\n${JSON.stringify(input.toolSpec, null, 2)}`;
+    // Build user message with tool spec - use compact JSON to reduce tokens
+    // Remove internal fields that don't need to go to the AI
+    const cleanSpec = { ...input.toolSpec };
+    delete (cleanSpec as Record<string, unknown>)._outputFixInstructions;
+    delete (cleanSpec as Record<string, unknown>)._builderContext;
+
+    let userMessage = `## Tool Specification\n\n${JSON.stringify(cleanSpec)}`;
+
+    console.log(`[ToolBuilder] Starting generation for job ${context.jobId}, mode: ${isWizardMode ? 'WIZARD' : 'CLASSIC'}, spec size: ${userMessage.length} chars`);
 
     // Extract BuilderContext if available (from course-based tools)
     const toolSpecWithContext = input.toolSpec as ToolSpec & { _builderContext?: BuilderContext };
@@ -53,28 +64,12 @@ export const toolBuilderStage: Stage<ToolBuilderInput, ToolBuilderOutput> = {
 - [ ] Verdict criteria (go/noGo) drive the verdict display`;
     }
 
-    // Multi-phase wizard detection (019-multistep-wizard-tools)
-    const isWizardMode = isMultiPhaseSpec(input.toolSpec);
+    // Multi-phase wizard mode - include phase config (already in cleanSpec)
     if (isWizardMode) {
-      userMessage += `\n\n## MULTI-PHASE WIZARD MODE DETECTED
+      userMessage += `\n\n## MULTI-PHASE WIZARD MODE
 
-⚠️ This tool has ${input.toolSpec.phases!.length} phases defined. Generate WIZARD MODE HTML, not typeform-style slides.
-
-### Phase Configuration:
-${JSON.stringify(input.toolSpec.phases, null, 2)}
-
-### Default Phase Path:
-${JSON.stringify(input.toolSpec.defaultPhasePath || input.toolSpec.phases!.map(p => p.id), null, 2)}
-
-### WIZARD MODE REQUIREMENTS:
-1. Generate phase-based navigation (not slide-based)
-2. Each phase shows only its assigned inputs
-3. Show summary screen after each phase completion
-4. Display teaching moments when expertWisdom matches phase tags
-5. Implement branch condition evaluation for adaptive paths
-6. Show rich 5-section results at the end
-7. Use sessionStorage for wizard state persistence (30-min timeout)
-8. Backward navigation must preserve all input data`;
+⚠️ Generate WIZARD MODE HTML with ${input.toolSpec.phases!.length} phases.
+Requirements: phase-based nav, summary screens, teaching moments, sessionStorage state, branch conditions.`;
     }
 
     if (input.template) {
@@ -94,12 +89,23 @@ CRITICAL: Do NOT skip or genericize any of the items listed above. Each one MUST
 
     // Call Claude to generate HTML
     const startTime = Date.now();
-    const response = await aiService.callClaude({
-      systemPrompt,
-      userPrompt: userMessage,
-      maxTokens: 16384 // Full token limit for high-quality HTML generation
-    });
+    const totalPromptSize = systemPrompt.length + userMessage.length;
+    console.log(`[ToolBuilder] AI call starting, total prompt: ${totalPromptSize} chars (~${Math.round(totalPromptSize / 4)} tokens), maxTokens: 16384`);
+
+    let response;
+    try {
+      response = await aiService.callClaude({
+        systemPrompt,
+        userPrompt: userMessage,
+        maxTokens: 16384 // Full token limit for high-quality HTML generation
+      });
+    } catch (error) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[ToolBuilder] AI call failed after ${Math.round(elapsed / 1000)}s:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
     const duration = Date.now() - startTime;
+    console.log(`[ToolBuilder] AI call completed in ${Math.round(duration / 1000)}s, output: ${response.content.length} chars`);
 
     // Fire-and-forget: Log the AI call (spec 024-agent-reasoning-logs)
     createLog({

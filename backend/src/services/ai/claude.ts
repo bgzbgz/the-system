@@ -16,9 +16,9 @@ import logger from '../../utils/logger';
 const CLAUDE_SONNET = 'claude-sonnet-4-20250514';  // For complex tasks (toolBuilder, QA)
 const CLAUDE_HAIKU = 'claude-3-5-haiku-20241022';   // For simpler tasks (secretary, templateDecider)
 const DEFAULT_MAX_TOKENS = 4096;
-const DEFAULT_TIMEOUT_MS = 180000; // 3 minutes timeout (reduced - with retries this is enough)
-const MAX_RETRIES = 2;  // Retry up to 2 times on timeout
-const RETRY_DELAY_MS = 2000;  // 2 second delay between retries
+const DEFAULT_TIMEOUT_MS = 600000; // 10 minutes - toolBuilder with 16K output needs this
+const MAX_RETRIES = 1;  // Retry once on timeout (with 10min timeout, 1 retry = 20min max)
+const RETRY_DELAY_MS = 3000;  // 3 second delay between retries
 
 // ========== CLAUDE PROVIDER ==========
 
