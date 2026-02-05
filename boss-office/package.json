@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "serve dist -s -l $PORT"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",
@@ -16,6 +17,7 @@
   },
   "dependencies": {
     "mammoth": "^1.11.0",
-    "pdfjs-dist": "^5.4.530"
+    "pdfjs-dist": "^5.4.530",
+    "serve": "^14.2.5"
   }
 }

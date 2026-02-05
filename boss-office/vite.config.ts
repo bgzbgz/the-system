@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite';
 
+// Use '/' for Railway, '/the-system/' for GitHub Pages
+const basePath = process.env.RAILWAY_ENVIRONMENT ? '/' : '/the-system/';
+
 export default defineConfig({
-  base: '/the-system/', // GitHub Pages base path
+  base: basePath,
   server: {
     port: 5173,
     strictPort: false,
