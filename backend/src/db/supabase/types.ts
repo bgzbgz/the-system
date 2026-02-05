@@ -8,6 +8,7 @@
 
 export type JobStatus =
   | 'DRAFT'
+  | 'AWAITING_CONFIRMATION'
   | 'SENT'
   | 'PROCESSING'
   | 'FACTORY_FAILED'
@@ -79,8 +80,64 @@ export interface Job {
   revision_count: number;
   revision_history: RevisionHistoryEntry[];
   workflow_error: string | null;
+  // AI-First Analysis Fields
+  analysis_result: ContentAnalysisResult | null;
+  analysis_confirmed: boolean;
+  analysis_edits: AnalysisEdits | null;
+  analyzed_at: string | null;
+  confirmed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Content Analyzer AI's extracted understanding from uploaded document
+ */
+export interface ContentAnalysisResult {
+  coreInsight: string;
+  framework: {
+    name: string;
+    items: Array<{
+      number: number;
+      name: string;
+      description: string;
+    }>;
+  } | null;
+  decisionType: 'go-no-go' | 'scoring' | 'comparison' | 'calculator';
+  decisionQuestion: string;
+  suggestedInputs: Array<{
+    id: string;
+    label: string;
+    type: 'number' | 'currency' | 'percentage' | 'slider' | 'text' | 'select';
+    hint?: string;
+    options?: string[];
+  }>;
+  terminology: Array<{
+    term: string;
+    definition: string;
+  }>;
+  expertQuotes: Array<{
+    quote: string;
+    source: string;
+  }>;
+  goCondition: string;
+  noGoCondition: string;
+  confidence: number;
+  suggestedToolName: string;
+  toolPurpose: string;
+}
+
+/**
+ * User's edits to the AI's understanding
+ */
+export interface AnalysisEdits {
+  coreInsight?: string;
+  decisionType?: ContentAnalysisResult['decisionType'];
+  decisionQuestion?: string;
+  suggestedInputs?: ContentAnalysisResult['suggestedInputs'];
+  goCondition?: string;
+  noGoCondition?: string;
+  additionalNotes?: string;
 }
 
 export interface JobArtifact {

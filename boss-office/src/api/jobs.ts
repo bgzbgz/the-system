@@ -300,6 +300,181 @@ export async function cancelJob(jobId: string): Promise<CancelResponse> {
   return response;
 }
 
+// ========== AI-FIRST ANALYSIS FLOW ==========
+
+/**
+ * Template description from backend
+ */
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  examples: string[];
+  ideal_for: string;
+}
+
+/**
+ * Content analysis result from AI
+ */
+export interface ContentAnalysisResult {
+  coreInsight: string;
+  framework: {
+    name: string;
+    items: Array<{
+      number: number;
+      name: string;
+      description: string;
+    }>;
+  } | null;
+  decisionType: 'go-no-go' | 'scoring' | 'comparison' | 'calculator';
+  decisionQuestion: string;
+  suggestedInputs: Array<{
+    id: string;
+    label: string;
+    type: 'number' | 'currency' | 'percentage' | 'slider' | 'text' | 'select';
+    hint?: string;
+    options?: string[];
+  }>;
+  terminology: Array<{
+    term: string;
+    definition: string;
+  }>;
+  expertQuotes: Array<{
+    quote: string;
+    source: string;
+  }>;
+  goCondition: string;
+  noGoCondition: string;
+  confidence: number;
+  suggestedToolName: string;
+  toolPurpose: string;
+}
+
+/**
+ * User edits to AI analysis
+ */
+export interface AnalysisEdits {
+  coreInsight?: string;
+  decisionType?: ContentAnalysisResult['decisionType'];
+  decisionQuestion?: string;
+  suggestedInputs?: ContentAnalysisResult['suggestedInputs'];
+  goCondition?: string;
+  noGoCondition?: string;
+  additionalNotes?: string;
+}
+
+// Get template descriptions
+interface TemplatesResponse {
+  data: {
+    templates: Template[];
+  };
+}
+
+export async function getTemplates(): Promise<Template[]> {
+  const response = await api.get<TemplatesResponse>('/jobs/templates');
+  return response.data.templates;
+}
+
+// Analyze content request/response
+interface AnalyzeRequest {
+  file_name: string;
+  file_content: string;
+  category: 'B2B_PRODUCT' | 'B2B_SERVICE' | 'B2C_PRODUCT' | 'B2C_SERVICE';
+}
+
+interface AnalyzeResponse {
+  data: {
+    success: boolean;
+    analysis: ContentAnalysisResult;
+    timing?: {
+      duration: number;
+      tokensUsed: {
+        input: number;
+        output: number;
+      };
+    };
+  };
+}
+
+// Analyze uploaded content and get AI's understanding
+export async function analyzeContent(
+  fileName: string,
+  fileContent: string,
+  category: 'B2B_PRODUCT' | 'B2B_SERVICE' | 'B2C_PRODUCT' | 'B2C_SERVICE'
+): Promise<{ analysis: ContentAnalysisResult; timing?: { duration: number } }> {
+  const payload: AnalyzeRequest = {
+    file_name: fileName,
+    file_content: fileContent,
+    category,
+  };
+
+  const response = await api.post<AnalyzeResponse>('/jobs/analyze', payload);
+  return {
+    analysis: response.data.analysis,
+    timing: response.data.timing,
+  };
+}
+
+// Create job from confirmed analysis
+interface CreateFromAnalysisRequest {
+  file_name: string;
+  file_content: string;
+  category: 'B2B_PRODUCT' | 'B2B_SERVICE' | 'B2C_PRODUCT' | 'B2C_SERVICE';
+  analysis: ContentAnalysisResult;
+  edits?: AnalysisEdits;
+}
+
+interface CreateFromAnalysisResponse {
+  success: boolean;
+  job_id: string;
+  status: string;
+  slug: string;
+  tool_name: string;
+  message: string;
+}
+
+export async function createJobFromAnalysis(
+  fileName: string,
+  fileContent: string,
+  category: 'B2B_PRODUCT' | 'B2B_SERVICE' | 'B2C_PRODUCT' | 'B2C_SERVICE',
+  analysis: ContentAnalysisResult,
+  edits?: AnalysisEdits
+): Promise<Job> {
+  const payload: CreateFromAnalysisRequest = {
+    file_name: fileName,
+    file_content: fileContent,
+    category,
+    analysis,
+    edits,
+  };
+
+  const response = await api.post<CreateFromAnalysisResponse>('/jobs/create-from-analysis', payload);
+
+  // Return minimal job object
+  return {
+    _id: response.job_id,
+    status: response.status as JobStatus,
+    fileName: fileName,
+    fileContent: fileContent,
+    toolName: response.tool_name || analysis.suggestedToolName,
+    category: category,
+    questionnaire: {
+      category: category,
+      decision: analysis.decisionQuestion,
+      teachingPoint: analysis.coreInsight,
+      inputs: analysis.suggestedInputs.map(i => `${i.label} (${i.type})`).join(', '),
+      verdictCriteria: `GO: ${analysis.goCondition}\nNO-GO: ${analysis.noGoCondition}`,
+    },
+    generatedHtml: null,
+    qaReport: null,
+    deployedUrl: null,
+    revisionNotes: [],
+    workflowError: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 // Export all functions as named exports for tree-shaking
 export const jobsApi = {
   list: listJobs,
@@ -309,4 +484,8 @@ export const jobsApi = {
   revise: requestRevision,
   reject: rejectJob,
   cancel: cancelJob,
+  // AI-first flow
+  getTemplates,
+  analyzeContent,
+  createFromAnalysis: createJobFromAnalysis,
 };

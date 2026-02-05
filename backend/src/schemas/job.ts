@@ -18,6 +18,7 @@ export const CategoryTypeSchema = z.enum([
 
 export const JobStatusSchema = z.enum([
   'DRAFT',
+  'AWAITING_CONFIRMATION',
   'FAILED_SEND',
   'SENT',
   'PROCESSING',
@@ -112,3 +113,113 @@ export const rejectJobSchema = z.object({
 });
 
 export type RejectJobInput = z.infer<typeof rejectJobSchema>;
+
+// ========== AI-FIRST ANALYSIS FLOW ==========
+
+/**
+ * Content analysis request schema
+ * For POST /api/jobs/analyze
+ */
+export const analyzeContentSchema = z.object({
+  file_name: z
+    .string()
+    .min(1, 'File name is required')
+    .max(255, 'File name must be at most 255 characters'),
+
+  file_content: z
+    .string()
+    .min(100, 'File content must be at least 100 characters')
+    .max(2000000, 'File content must be at most 2,000,000 characters'),
+
+  category: CategoryTypeSchema
+});
+
+export type AnalyzeContentInput = z.infer<typeof analyzeContentSchema>;
+
+/**
+ * Suggested input field schema
+ */
+export const suggestedInputSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  type: z.enum(['number', 'currency', 'percentage', 'slider', 'text', 'select']),
+  hint: z.string().optional(),
+  options: z.array(z.string()).optional()
+});
+
+/**
+ * Framework item schema
+ */
+export const frameworkItemSchema = z.object({
+  number: z.number(),
+  name: z.string(),
+  description: z.string()
+});
+
+/**
+ * Content analysis result schema
+ */
+export const contentAnalysisResultSchema = z.object({
+  coreInsight: z.string(),
+  framework: z.object({
+    name: z.string(),
+    items: z.array(frameworkItemSchema)
+  }).nullable(),
+  decisionType: z.enum(['go-no-go', 'scoring', 'comparison', 'calculator']),
+  decisionQuestion: z.string(),
+  suggestedInputs: z.array(suggestedInputSchema),
+  terminology: z.array(z.object({
+    term: z.string(),
+    definition: z.string()
+  })),
+  expertQuotes: z.array(z.object({
+    quote: z.string(),
+    source: z.string()
+  })),
+  goCondition: z.string(),
+  noGoCondition: z.string(),
+  confidence: z.number().min(0).max(100),
+  suggestedToolName: z.string(),
+  toolPurpose: z.string()
+});
+
+export type ContentAnalysisResult = z.infer<typeof contentAnalysisResultSchema>;
+
+/**
+ * Analysis edits schema
+ */
+export const analysisEditsSchema = z.object({
+  coreInsight: z.string().optional(),
+  decisionType: z.enum(['go-no-go', 'scoring', 'comparison', 'calculator']).optional(),
+  decisionQuestion: z.string().optional(),
+  suggestedInputs: z.array(suggestedInputSchema).optional(),
+  goCondition: z.string().optional(),
+  noGoCondition: z.string().optional(),
+  additionalNotes: z.string().optional()
+});
+
+export type AnalysisEdits = z.infer<typeof analysisEditsSchema>;
+
+/**
+ * Create job from analysis request schema
+ * For POST /api/jobs/create-from-analysis
+ */
+export const createFromAnalysisSchema = z.object({
+  file_name: z
+    .string()
+    .min(1, 'File name is required')
+    .max(255, 'File name must be at most 255 characters'),
+
+  file_content: z
+    .string()
+    .min(100, 'File content must be at least 100 characters')
+    .max(2000000, 'File content must be at most 2,000,000 characters'),
+
+  category: CategoryTypeSchema,
+
+  analysis: contentAnalysisResultSchema,
+
+  edits: analysisEditsSchema.optional()
+});
+
+export type CreateFromAnalysisInput = z.infer<typeof createFromAnalysisSchema>;

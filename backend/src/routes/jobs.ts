@@ -33,7 +33,13 @@ import {
   jobToCreatedResponse
 } from '../models/job';
 import { validateBody, validateQuery } from '../middleware/validate';
-import { jobSubmissionSchema, jobListQuerySchema, rejectJobSchema } from '../schemas/job';
+import {
+  jobSubmissionSchema,
+  jobListQuerySchema,
+  rejectJobSchema,
+  analyzeContentSchema,
+  createFromAnalysisSchema
+} from '../schemas/job';
 import { revisionRequestSchema } from '../schemas/revision';
 import { jobService, jobArtifactService } from '../db/supabase';
 import { transitionJob, createInitialAuditEntry, ActorType, canTransition } from '../services/stateMachine';
@@ -55,6 +61,8 @@ import { toolFactory } from '../services/factory/index';
 import { githubService } from '../services/github';
 import { aiService } from '../services/ai';
 import { getLogsByJobId, getLogsByStage, AgentStage } from '../services/logStore';
+import { ContentAnalyzer } from '../services/factory/contentAnalyzer';
+import type { ContentAnalysisResult, AnalysisEdits } from '../models/job';
 
 // ========== ROUTER ==========
 
@@ -76,6 +84,331 @@ router.get('/inbox', async (req: Request, res: Response) => {
     logger.logError('Error fetching inbox', error as Error);
     sendInternalError(res);
   }
+});
+
+// ========== AI-FIRST ANALYSIS FLOW (NEW) ==========
+
+/**
+ * POST /api/jobs/analyze
+ * AI-First Tool Creation: Analyze uploaded content without creating a job
+ * Returns AI's understanding for user confirmation
+ *
+ * Request body:
+ * - file_name: string (original filename)
+ * - file_content: string (extracted text content)
+ * - category: CategoryType (B2B_PRODUCT, B2B_SERVICE, B2C_PRODUCT, B2C_SERVICE)
+ *
+ * Response:
+ * - success: boolean
+ * - analysis: ContentAnalysisResult (AI's extracted understanding)
+ * - timing: { duration, tokensUsed }
+ */
+router.post('/analyze',
+  validateBody(analyzeContentSchema),
+  async (req: Request, res: Response) => {
+  try {
+    // Pre-flight check: AI service must be configured
+    if (!aiService.isConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'AI service not configured',
+        code: 'SERVICE_UNAVAILABLE',
+        details: 'Set ANTHROPIC_API_KEY environment variable'
+      });
+    }
+
+    const { file_name, file_content, category } = req.body;
+
+    // Validate required fields
+    if (!file_content || typeof file_content !== 'string') {
+      return sendValidationError(res, 'file_content is required and must be a string');
+    }
+
+    if (!category || !Object.values(CategoryType).includes(category)) {
+      return sendValidationError(res, `category must be one of: ${Object.values(CategoryType).join(', ')}`);
+    }
+
+    logger.info('[Analyze] Starting content analysis', {
+      file_name,
+      category,
+      content_length: file_content.length
+    });
+
+    // Create analyzer and run analysis
+    const analyzer = new ContentAnalyzer(aiService);
+    const result = await analyzer.analyze(file_content, category);
+
+    if (!result.success) {
+      logger.logError('[Analyze] Analysis failed', new Error(result.error || 'Unknown error'));
+      return res.status(500).json({
+        success: false,
+        error: result.error || 'Analysis failed',
+        code: 'ANALYSIS_FAILED'
+      });
+    }
+
+    logger.info('[Analyze] Analysis complete', {
+      file_name,
+      confidence: result.analysis?.confidence,
+      suggested_tool_name: result.analysis?.suggestedToolName,
+      input_count: result.analysis?.suggestedInputs?.length
+    });
+
+    sendSuccess(res, {
+      success: true,
+      analysis: result.analysis,
+      timing: result.timing
+    });
+
+  } catch (error) {
+    logger.logError('Error in content analysis', error as Error);
+    sendInternalError(res);
+  }
+});
+
+/**
+ * POST /api/jobs/create-from-analysis
+ * AI-First Tool Creation: Create job from confirmed analysis
+ * User has reviewed and optionally edited the AI's understanding
+ *
+ * Request body:
+ * - file_name: string (original filename)
+ * - file_content: string (extracted text content)
+ * - category: CategoryType
+ * - analysis: ContentAnalysisResult (the AI's analysis, possibly edited)
+ * - edits?: AnalysisEdits (any edits the user made)
+ *
+ * Response:
+ * - success: boolean
+ * - job_id: string
+ * - slug: string
+ * - status: JobStatus
+ */
+router.post('/create-from-analysis',
+  validateBody(createFromAnalysisSchema),
+  async (req: Request, res: Response) => {
+  try {
+    // Pre-flight check: AI service must be configured
+    if (!aiService.isConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'AI service not configured',
+        code: 'SERVICE_UNAVAILABLE',
+        details: 'Set ANTHROPIC_API_KEY environment variable'
+      });
+    }
+
+    const { file_name, file_content, category, analysis, edits } = req.body;
+
+    // Validate required fields
+    if (!file_name || typeof file_name !== 'string') {
+      return sendValidationError(res, 'file_name is required');
+    }
+
+    if (!file_content || typeof file_content !== 'string') {
+      return sendValidationError(res, 'file_content is required');
+    }
+
+    if (!category || !Object.values(CategoryType).includes(category)) {
+      return sendValidationError(res, `category must be one of: ${Object.values(CategoryType).join(', ')}`);
+    }
+
+    if (!analysis || typeof analysis !== 'object') {
+      return sendValidationError(res, 'analysis is required (ContentAnalysisResult)');
+    }
+
+    logger.info('[CreateFromAnalysis] Creating job from confirmed analysis', {
+      file_name,
+      category,
+      suggested_tool_name: analysis.suggestedToolName,
+      has_edits: !!edits
+    });
+
+    // Apply user edits if any
+    const analyzer = new ContentAnalyzer(aiService);
+    const finalAnalysis: ContentAnalysisResult = edits
+      ? analyzer.applyEdits(analysis, edits)
+      : { ...analysis, confidence: 100 }; // Mark as confirmed
+
+    // Convert analysis to job submission format
+    const jobSubmissionRaw = analyzer.toJobSubmission(
+      finalAnalysis,
+      file_content,
+      file_name,
+      category
+    );
+
+    // Cast to JobSubmissionInput (category type is compatible)
+    const jobSubmission = {
+      ...jobSubmissionRaw,
+      category: jobSubmissionRaw.category as CategoryType
+    };
+
+    // Generate job ID and slug
+    const jobId = randomUUID();
+    const baseSlug = slugFromFileName(file_name);
+    const slug = generateUniqueSlug(baseSlug);
+
+    // Create job from submission
+    const job = createJobFromSubmission(jobSubmission, jobId, slug);
+
+    // Add analysis fields to job
+    const jobWithAnalysis = {
+      ...job,
+      analysis_result: finalAnalysis,
+      analysis_confirmed: true,
+      analysis_edits: edits || null,
+      analyzed_at: new Date(),
+      confirmed_at: new Date()
+    };
+
+    // Create initial audit entry
+    await createInitialAuditEntry(jobId);
+
+    // Save job to store FIRST (before async processing)
+    await jobService.createJob(jobWithAnalysis);
+
+    logger.logOperation({
+      operation: 'JOB_CREATED_FROM_ANALYSIS',
+      job_id: jobId,
+      status: job.status,
+      actor: 'SYSTEM',
+      details: {
+        file_name,
+        category,
+        slug,
+        tool_name: finalAnalysis.suggestedToolName,
+        has_edits: !!edits
+      }
+    });
+
+    // Build user request string for toolFactory (with analysis context)
+    const userRequest = buildUserRequestFromAnalysis(jobSubmission, finalAnalysis);
+
+    // Fire-and-forget: Trigger factory processing
+    toolFactory.processRequest({
+      jobId,
+      userRequest
+    }).then(async (result) => {
+      logger.logOperation({
+        operation: 'FACTORY_COMPLETED',
+        job_id: jobId,
+        status: result.success ? 'success' : 'failed',
+        actor: 'FACTORY',
+        details: {
+          status: result.status,
+          revisionCount: result.revisionCount
+        }
+      });
+
+      // Helper to convert QACriteria object to array of findings
+      const criteriaToFindings = (criteria: Record<string, { passed: boolean; feedback: string }> | undefined) => {
+        if (!criteria) return undefined;
+        return Object.entries(criteria).map(([name, c]) => ({
+          check: name,
+          passed: c.passed,
+          message: c.feedback
+        }));
+      };
+
+      // Save the generated HTML and update status based on result
+      if (result.success && result.toolHtml) {
+        await jobArtifactService.saveToolHtml(jobId, result.toolHtml);
+
+        await jobService.updateJob(jobId, {
+          status: JobStatus.READY_FOR_REVIEW,
+          tool_name: result.toolSpec?.name || finalAnalysis.suggestedToolName,
+          qa_report: result.qaResult ? {
+            passed: result.qaResult.passed,
+            score: result.qaResult.score,
+            max_score: 8,
+            findings: criteriaToFindings(result.qaResult.criteria as unknown as Record<string, { passed: boolean; feedback: string }>)
+          } : undefined
+        });
+      } else if (!result.success) {
+        if (result.toolHtml) {
+          await jobArtifactService.saveToolHtml(jobId, result.toolHtml);
+        }
+
+        await jobService.updateJob(jobId, {
+          status: JobStatus.QA_FAILED,
+          tool_name: result.toolSpec?.name || finalAnalysis.suggestedToolName,
+          qa_report: result.qaResult ? {
+            passed: result.qaResult.passed,
+            score: result.qaResult.score,
+            max_score: 8,
+            findings: criteriaToFindings(result.qaResult.criteria as unknown as Record<string, { passed: boolean; feedback: string }>)
+          } : undefined,
+          workflow_error: result.error?.message || 'Factory processing failed'
+        });
+      }
+    }).catch(async (err) => {
+      logger.logError('Factory processing failed', err as Error, { job_id: jobId });
+      await jobService.updateJob(jobId, {
+        status: JobStatus.QA_FAILED,
+        workflow_error: (err as Error).message
+      });
+    });
+
+    logger.logOperation({
+      operation: 'FACTORY_SUBMITTED',
+      job_id: jobId,
+      actor: 'SYSTEM'
+    });
+
+    // Return created response immediately (fire-and-forget pattern)
+    sendCreated(res, {
+      success: true,
+      job_id: jobId,
+      status: JobStatus.PROCESSING,
+      slug,
+      tool_name: finalAnalysis.suggestedToolName,
+      message: 'Job created from confirmed analysis and submitted for processing'
+    });
+
+  } catch (error) {
+    logger.logError('Error creating job from analysis', error as Error);
+    sendInternalError(res);
+  }
+});
+
+/**
+ * GET /api/jobs/templates
+ * Get template descriptions for the 4 category types
+ */
+router.get('/templates', (_req: Request, res: Response) => {
+  const templates = [
+    {
+      id: 'B2B_PRODUCT',
+      name: 'B2B Product',
+      description: 'Tools for business customers evaluating physical or digital products. Includes ROI calculators, product comparisons, feature evaluators, and implementation readiness assessments.',
+      examples: ['ROI Calculator', 'Product Comparison Tool', 'Implementation Readiness Assessment'],
+      ideal_for: 'Software, equipment, hardware, enterprise solutions'
+    },
+    {
+      id: 'B2B_SERVICE',
+      name: 'B2B Service',
+      description: 'Tools for business customers evaluating service offerings. Includes service scope calculators, vendor selection tools, partnership readiness assessments, and contract value analyzers.',
+      examples: ['Vendor Selection Scorecard', 'Partnership Readiness Quiz', 'Service Pricing Calculator'],
+      ideal_for: 'Consulting, agencies, professional services, outsourcing'
+    },
+    {
+      id: 'B2C_PRODUCT',
+      name: 'B2C Product',
+      description: 'Tools for individual consumers evaluating products. Includes purchase decision tools, product fit quizzes, value assessments, and lifestyle compatibility checks.',
+      examples: ['Product Fit Quiz', 'Purchase Decision Helper', 'Value Assessment Tool'],
+      ideal_for: 'Consumer goods, retail, e-commerce, personal products'
+    },
+    {
+      id: 'B2C_SERVICE',
+      name: 'B2C Service',
+      description: 'Tools for individual consumers evaluating services. Includes service selection tools, membership value calculators, subscription decision aids, and personal goal alignment quizzes.',
+      examples: ['Membership Value Calculator', 'Service Selection Guide', 'Goal Alignment Quiz'],
+      ideal_for: 'Subscriptions, memberships, personal services, coaching'
+    }
+  ];
+
+  sendSuccess(res, { templates });
 });
 
 /**
@@ -987,6 +1320,86 @@ function buildUserRequestFromJob(job: any, revisionNotes?: string): string {
   }
 
   return parts.join('\n\n');
+}
+
+/**
+ * Build user request string for toolFactory from AI-first analysis
+ * Enhanced with AI's extracted understanding
+ */
+function buildUserRequestFromAnalysis(
+  jobSubmission: {
+    file_name: string;
+    file_content: string;
+    category: string;
+    decision: string;
+    teaching_point: string;
+    inputs: string;
+    verdict_criteria: string;
+  },
+  analysis: ContentAnalysisResult
+): string {
+  const parts = [
+    `Create a decision tool called: ${analysis.suggestedToolName}`,
+    `Purpose: ${analysis.toolPurpose}`,
+    `Category: ${jobSubmission.category}`,
+    ``,
+    `=== AI-ANALYZED REQUIREMENTS (USER CONFIRMED) ===`,
+    ``,
+    `CORE INSIGHT (The 80/20):`,
+    analysis.coreInsight,
+    ``,
+    `DECISION TYPE: ${analysis.decisionType}`,
+    `DECISION QUESTION: ${analysis.decisionQuestion}`,
+    ``
+  ];
+
+  // Add framework if detected
+  if (analysis.framework) {
+    parts.push(`FRAMEWORK: ${analysis.framework.name}`);
+    analysis.framework.items.forEach(item => {
+      parts.push(`  ${item.number}. ${item.name}: ${item.description}`);
+    });
+    parts.push(``);
+  }
+
+  // Add suggested inputs
+  parts.push(`TOOL INPUTS:`);
+  analysis.suggestedInputs.forEach(input => {
+    const hint = input.hint ? ` (${input.hint})` : '';
+    const options = input.options ? ` [Options: ${input.options.join(', ')}]` : '';
+    parts.push(`  - ${input.label} (${input.type})${hint}${options}`);
+  });
+  parts.push(``);
+
+  // Add terminology
+  if (analysis.terminology && analysis.terminology.length > 0) {
+    parts.push(`KEY TERMINOLOGY (USE THESE EXACT TERMS):`);
+    analysis.terminology.forEach(t => {
+      parts.push(`  - ${t.term}: ${t.definition}`);
+    });
+    parts.push(``);
+  }
+
+  // Add expert quotes
+  if (analysis.expertQuotes && analysis.expertQuotes.length > 0) {
+    parts.push(`EXPERT QUOTES (INCLUDE IN RESULTS):`);
+    analysis.expertQuotes.forEach(q => {
+      parts.push(`  "${q.quote}" - ${q.source}`);
+    });
+    parts.push(``);
+  }
+
+  // Add verdict criteria
+  parts.push(`VERDICT CRITERIA:`);
+  parts.push(`  GO: ${analysis.goCondition}`);
+  parts.push(`  NO-GO: ${analysis.noGoCondition}`);
+  parts.push(``);
+
+  // Add source content
+  parts.push(`=== SOURCE CONTENT ===`);
+  parts.push(jobSubmission.file_content);
+
+  return parts.join('\n');
 }
 
 export default router;

@@ -134,6 +134,22 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
         <!-- QA Report (if available) -->
         ${job.qaReport ? renderQASection(job.qaReport) : ''}
 
+        <!-- Agent Reasoning Summary (shown for completed jobs) -->
+        ${['READY_FOR_REVIEW', 'QA_FAILED', 'DEPLOYED', 'REJECTED'].includes(job.status) ? `
+          <div class="job-detail__section job-detail__section--reasoning">
+            <div class="job-detail__section-header">
+              <h2 class="job-detail__section-title">WHY THIS DESIGN?</h2>
+              <a href="#/job/${job._id}/logs" class="btn btn--text btn--small">VIEW FULL LOGS →</a>
+            </div>
+            <div id="reasoning-summary" class="reasoning-summary">
+              <div class="reasoning-summary__loading">
+                <span class="spinner spinner--small"></span>
+                Loading agent reasoning...
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
         <!-- Tool Preview (if HTML available) -->
         ${job.generatedHtml ? renderPreviewSection(job) : ''}
 
@@ -265,6 +281,12 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
     });
   }
 
+  // Load reasoning summary for completed jobs
+  const reasoningSummaryContainer = container.querySelector<HTMLElement>('#reasoning-summary');
+  if (reasoningSummaryContainer && ['READY_FOR_REVIEW', 'QA_FAILED', 'DEPLOYED', 'REJECTED'].includes(job.status)) {
+    loadReasoningSummary(job._id, reasoningSummaryContainer);
+  }
+
   // Attach event listeners
   attachJobDetailListeners(container, job);
 }
@@ -319,6 +341,161 @@ function renderPreviewSection(job: Job): string {
       </div>
     </div>
   `;
+}
+
+/**
+ * Load and render agent reasoning summary
+ */
+async function loadReasoningSummary(jobId: string, container: HTMLElement): Promise<void> {
+  try {
+    const response = await getLogs(jobId);
+    const logs = response.logs || [];
+
+    if (logs.length === 0) {
+      container.innerHTML = `
+        <p class="reasoning-summary__empty">No agent logs available for this job.</p>
+      `;
+      return;
+    }
+
+    // Group logs by stage and extract key insights
+    const stageInsights = generateStageInsights(logs);
+
+    container.innerHTML = `
+      <div class="reasoning-cards">
+        ${stageInsights.map(insight => `
+          <div class="reasoning-card reasoning-card--${insight.status}">
+            <div class="reasoning-card__header">
+              <span class="reasoning-card__stage">${insight.stageName}</span>
+              <span class="reasoning-card__status">${insight.status === 'success' ? '✓' : insight.status === 'error' ? '✗' : '•'}</span>
+            </div>
+            <p class="reasoning-card__summary">${escapeHtml(insight.summary)}</p>
+            ${insight.keyDecisions.length > 0 ? `
+              <ul class="reasoning-card__decisions">
+                ${insight.keyDecisions.map(decision => `
+                  <li>${escapeHtml(decision)}</li>
+                `).join('')}
+              </ul>
+            ` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (error) {
+    console.error('Failed to load reasoning summary:', error);
+    container.innerHTML = `
+      <p class="reasoning-summary__error">Failed to load agent reasoning.</p>
+    `;
+  }
+}
+
+/**
+ * Generate insights from logs for each stage
+ */
+function generateStageInsights(logs: FactoryLog[]): Array<{
+  stageName: string;
+  status: 'success' | 'error' | 'info';
+  summary: string;
+  keyDecisions: string[];
+}> {
+  // Stage display names and order
+  const stageConfig: Record<string, { name: string; order: number }> = {
+    'secretary': { name: 'Secretary', order: 1 },
+    'content-summarizer': { name: 'Content Summarizer', order: 2 },
+    'course-analyst': { name: 'Course Analyst', order: 3 },
+    'knowledge-architect': { name: 'Knowledge Architect', order: 4 },
+    'tool-build': { name: 'Tool Builder', order: 5 },
+    'template-select': { name: 'Template Selection', order: 6 },
+    'qa-eval': { name: 'QA Evaluation', order: 7 },
+    'brand-guardian': { name: 'Brand Guardian', order: 8 },
+    'feedback-apply': { name: 'Feedback Applied', order: 9 },
+  };
+
+  // Group logs by stage
+  const byStage = new Map<string, FactoryLog[]>();
+  for (const log of logs) {
+    const existing = byStage.get(log.stage) || [];
+    existing.push(log);
+    byStage.set(log.stage, existing);
+  }
+
+  // Generate insights for each stage
+  const insights: Array<{
+    stageName: string;
+    status: 'success' | 'error' | 'info';
+    summary: string;
+    keyDecisions: string[];
+    order: number;
+  }> = [];
+
+  for (const [stage, stageLogs] of byStage) {
+    const config = stageConfig[stage] || { name: stage, order: 99 };
+    const latestLog = stageLogs[stageLogs.length - 1];
+
+    // Use the summary if available, otherwise generate one
+    let summary = latestLog.summary || '';
+    if (!summary) {
+      // Generate a summary based on the response length and tokens
+      const responseLen = latestLog.response?.length || 0;
+      const outputTokens = latestLog.tokens_output || 0;
+      summary = `Processed with ${outputTokens.toLocaleString()} tokens, generated ${responseLen.toLocaleString()} characters.`;
+    }
+
+    // Extract key decisions from the response (simplified)
+    const keyDecisions = extractKeyDecisions(latestLog.response || '', stage);
+
+    insights.push({
+      stageName: config.name,
+      status: 'success',
+      summary,
+      keyDecisions,
+      order: config.order,
+    });
+  }
+
+  // Sort by stage order
+  insights.sort((a, b) => a.order - b.order);
+
+  return insights;
+}
+
+/**
+ * Extract key decisions from an agent's response
+ */
+function extractKeyDecisions(response: string, stage: string): string[] {
+  const decisions: string[] = [];
+
+  // Stage-specific extractions
+  if (stage === 'template-select' || stage === 'templateDecider') {
+    const templateMatch = response.match(/template[:\s]+["']?(\w+)/i);
+    if (templateMatch) {
+      decisions.push(`Selected template: ${templateMatch[1]}`);
+    }
+  }
+
+  if (stage === 'qa-eval' || stage === 'qaDepartment') {
+    const passMatch = response.match(/passed|failed/i);
+    if (passMatch) {
+      decisions.push(`QA Result: ${passMatch[0].toUpperCase()}`);
+    }
+  }
+
+  if (stage === 'knowledge-architect' || stage === 'knowledgeArchitect') {
+    const inputsMatch = response.match(/inputs?[:\s]+(\d+)/i);
+    if (inputsMatch) {
+      decisions.push(`Designed ${inputsMatch[1]} input fields`);
+    }
+  }
+
+  if (stage === 'tool-build' || stage === 'toolBuilder') {
+    // Check for HTML generation
+    if (response.includes('<!DOCTYPE') || response.includes('<html')) {
+      decisions.push('Generated complete HTML tool');
+    }
+  }
+
+  // Limit to 3 decisions
+  return decisions.slice(0, 3);
 }
 
 /**

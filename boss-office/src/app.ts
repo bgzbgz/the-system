@@ -5,7 +5,7 @@ import { parseHash, navigate } from './utils/router.ts';
 
 // Views
 import { renderDashboardView } from './views/dashboard.ts';
-import { renderWizardView } from './views/wizard/index.ts';
+import { renderCreateToolView, cleanupCreateToolView } from './views/create-tool.ts';
 import { renderInboxView, cleanupInboxView } from './views/inbox.ts';
 import { renderJobDetailView, stopPolling as stopJobPolling } from './views/job-detail.ts';
 import { renderAILogsView } from './views/ai-logs.ts';
@@ -62,6 +62,7 @@ export function mountApp(container: HTMLElement): void {
 // Cleanup function for view transitions
 function cleanupCurrentView(): void {
   cleanupInboxView();
+  cleanupCreateToolView();
   stopJobPolling();
 }
 
@@ -86,7 +87,7 @@ function renderCurrentView(): void {
       break;
 
     case '/create':
-      renderWizardView(contentContainer);
+      renderCreateToolView(contentContainer);
       break;
 
     case '/inbox':

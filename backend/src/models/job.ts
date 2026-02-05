@@ -4,6 +4,14 @@
  * Per data-model.md and contracts/jobs.yaml
  */
 
+import type {
+  ContentAnalysisResult,
+  AnalysisEdits
+} from '../db/supabase/types';
+
+// Re-export the types for convenience
+export type { ContentAnalysisResult, AnalysisEdits };
+
 // ========== ENUMS ==========
 
 /**
@@ -22,6 +30,7 @@ export enum CategoryType {
  */
 export enum JobStatus {
   DRAFT = 'DRAFT',                         // Not yet submitted
+  AWAITING_CONFIRMATION = 'AWAITING_CONFIRMATION', // AI analyzed, waiting for user confirmation
   FAILED_SEND = 'FAILED_SEND',             // Failed to send to workflow
   SENT = 'SENT',                           // Initial: submitted to workflow
   PROCESSING = 'PROCESSING',               // Workflow is building tool
@@ -120,6 +129,13 @@ export interface Job {
   // Error tracking (T009)
   workflow_error?: string;               // Error from n8n trigger failure
 
+  // AI-First Analysis Fields (AI-first tool creation flow)
+  analysis_result?: ContentAnalysisResult;  // AI's extracted understanding
+  analysis_confirmed?: boolean;             // Whether user confirmed the analysis
+  analysis_edits?: AnalysisEdits;           // User's edits to AI understanding
+  analyzed_at?: Date;                       // When AI analysis was generated
+  confirmed_at?: Date;                      // When user confirmed the analysis
+
   // Legacy fields (kept for backward compatibility)
   original_filename?: string;            // Alias for file_name
   file_type?: FileType;
@@ -188,6 +204,12 @@ export interface JobDetail extends JobListItem {
   deployed_at?: string;
   revision_notes?: string;
   workflow_error?: string;
+  // AI-First Analysis Fields
+  analysis_result?: ContentAnalysisResult;
+  analysis_confirmed?: boolean;
+  analysis_edits?: AnalysisEdits;
+  analyzed_at?: string;
+  confirmed_at?: string;
 }
 
 /**
@@ -350,6 +372,32 @@ export const JobSchema = {
     required: false,
     default: null
   },
+  // AI-First Analysis Fields
+  analysis_result: {
+    type: Object,
+    required: false,
+    default: null
+  },
+  analysis_confirmed: {
+    type: Boolean,
+    required: false,
+    default: false
+  },
+  analysis_edits: {
+    type: Object,
+    required: false,
+    default: null
+  },
+  analyzed_at: {
+    type: Date,
+    required: false,
+    default: null
+  },
+  confirmed_at: {
+    type: Date,
+    required: false,
+    default: null
+  },
   // Legacy fields
   file_type: {
     type: String,
@@ -497,7 +545,13 @@ export function jobToDetail(job: Job): JobDetail {
     ...(job.deployed_url && { deployed_url: job.deployed_url }),
     ...(job.deployed_at && { deployed_at: toISOString(job.deployed_at) }),
     ...(job.revision_notes && { revision_notes: job.revision_notes }),
-    ...(job.workflow_error && { workflow_error: job.workflow_error })
+    ...(job.workflow_error && { workflow_error: job.workflow_error }),
+    // AI-First Analysis Fields
+    ...(job.analysis_result && { analysis_result: job.analysis_result }),
+    ...(job.analysis_confirmed !== undefined && { analysis_confirmed: job.analysis_confirmed }),
+    ...(job.analysis_edits && { analysis_edits: job.analysis_edits }),
+    ...(job.analyzed_at && { analyzed_at: toISOString(job.analyzed_at) }),
+    ...(job.confirmed_at && { confirmed_at: toISOString(job.confirmed_at) })
   };
 }
 
