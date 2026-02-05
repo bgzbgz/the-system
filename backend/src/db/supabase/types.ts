@@ -520,14 +520,6 @@ export interface Database {
         };
         Update: never; // Audit log is append-only
       };
-      tool_responses: {
-        Row: ToolResponse;
-        Insert: Omit<ToolResponse, 'id' | 'created_at'> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: never; // Responses are immutable
-      };
       quality_scores: {
         Row: QualityScore;
         Insert: Omit<QualityScore, 'id' | 'created_at'> & {
@@ -555,9 +547,10 @@ export interface Database {
       };
       tool_responses: {
         Row: ToolResponseRow;
-        Insert: Omit<ToolResponseRow, 'id' | 'created_at'> & {
+        Insert: Omit<ToolResponseRow, 'id' | 'tenant_id' | 'created_at' | 'completed_at'> & {
           id?: string;
           created_at?: string;
+          completed_at?: string | null;
         };
         Update: never; // Responses are immutable
       };

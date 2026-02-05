@@ -28,6 +28,9 @@ import { DeployedTool } from '../db/models/deployedTool';
 import * as toolCollectionService from '../db/services/toolCollectionService';
 import { ToolDefaults, CreateResponseInput } from '../db/models/toolCollection';
 
+// Supabase tool response service V2 (for saving responses to Supabase)
+import * as toolResponseService from '../db/supabase/services/toolResponseService_v2';
+
 const router = Router();
 
 // ========== PAYLOAD SIZE LIMIT ==========
@@ -77,16 +80,6 @@ router.post(
     const { slug } = req.params;
 
     try {
-      // Check database availability (edge case: MongoDB unavailable)
-      if (!isConnected()) {
-        logger.logError('Database unavailable for tool response', new Error('MongoDB not connected'));
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable',
-          code: 'DATABASE_UNAVAILABLE'
-        });
-      }
-
       // Validate required fields (FR-007)
       const { inputs, result } = req.body;
 
@@ -106,43 +99,47 @@ router.post(
         });
       }
 
-      // Feature 021: Get tool defaults to ensure tool exists and get tool_id
-      const defaults = await toolCollectionService.getDefaults(slug);
-      const tool_id = defaults?.tool_id || slug; // Fallback to slug if no defaults
-
       // Generate visitor ID if not provided
       const visitorId = req.body.visitorId || `anon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Feature 021: Build input for unified collection service
-      const input: CreateResponseInput = {
-        tool_id,
+      // Generate unique response ID
+      const responseId = `resp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Build response data for Supabase (matching ToolResponseRow schema)
+      const responseData = {
         tool_slug: slug,
-        user_id: req.body.learnworldsUserId || visitorId,
-        user_email: req.body.userEmail,
-        answers: inputs,
-        score: result.score || 0,
-        verdict: result.verdict || 'UNKNOWN',
+        response_id: responseId,
+        visitor_id: visitorId,
+        user_id: req.body.learnworldsUserId || null,
+        user_name: req.body.userName || null,
+        user_email: req.body.userEmail || null,
+        learnworlds_user_id: req.body.learnworldsUserId || null,
+        answers: inputs,  // User's input values
+        result: result,   // Calculated result object
+        score: result.score || null,
+        verdict: result.verdict || null,
         status: 'completed',
-        commitment: result.commitment,
-        session_id: visitorId,
-        source: req.body.source || 'direct'
+        source: req.body.source || 'direct',
+        course_id: req.body.courseId || null,
+        lesson_id: req.body.lessonId || null,
+        referrer: req.body.referrer || null
       };
 
-      // Feature 021: Save response using unified collection service
-      const savedResponse = await toolCollectionService.saveResponse(slug, input);
+      // Save response to Supabase
+      const savedResponse = await toolResponseService.createResponse(responseData);
 
       // Return 201 Created (FR-005)
       return res.status(201).json({
         success: true,
-        id: savedResponse.response_id,
+        id: savedResponse.id,
         visitorId: visitorId
       });
 
     } catch (error) {
       logger.logError('Error saving tool response', error as Error, { slug });
 
-      // Check if it's a MongoDB connection error
-      if ((error as Error).message?.includes('not connected')) {
+      // Check if it's a database connection error
+      if ((error as Error).message?.includes('connection') || (error as Error).message?.includes('unavailable')) {
         return res.status(503).json({
           success: false,
           error: 'Service temporarily unavailable',

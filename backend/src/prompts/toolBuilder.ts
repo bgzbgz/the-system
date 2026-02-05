@@ -219,7 +219,67 @@ AI COACH STYLES:
 SECTION 5: COMMITMENT SLIDE
 - Black background
 - WWW format: Who, What, When inputs
+- SAVE RESULTS button (MANDATORY - see below)
 - PDF export button
+
+SAVE BUTTON (MANDATORY FOR ALL TOOLS):
+After the commitment slide or results section, include:
+\`\`\`html
+<div class="save-section">
+  <button id="save-results-btn" class="btn-save" onclick="saveResults()">SAVE MY RESULTS</button>
+  <p class="save-hint">Save your analysis to track your progress</p>
+  <div id="save-status" style="display: none;"></div>
+</div>
+\`\`\`
+
+SAVE JAVASCRIPT (MANDATORY - include in your script):
+\`\`\`javascript
+// Get LearnWorlds user info from URL params
+function getLearnWorldsUser() {
+  var urlParams = new URLSearchParams(window.location.search);
+  return {
+    userId: urlParams.get('lw_user_id') || urlParams.get('user_id') || null,
+    email: urlParams.get('lw_email') || urlParams.get('email') || null
+  };
+}
+
+var resultsSaved = false;
+async function saveResults() {
+  if (resultsSaved) return;
+  var btn = document.getElementById('save-results-btn');
+  btn.disabled = true;
+  btn.textContent = 'SAVING...';
+
+  try {
+    var lwUser = getLearnWorldsUser();
+    var inputs = collectAllInputs(); // Implement based on your input structure
+    var payload = {
+      inputs: inputs,
+      result: { verdict: currentVerdict || 'UNKNOWN', score: currentScore || 0 },
+      learnworldsUserId: lwUser.userId,
+      userEmail: lwUser.email,
+      source: lwUser.userId ? 'learnworlds' : 'direct'
+    };
+
+    var response = await fetch(API_BASE + '/api/tools/' + TOOL_SLUG + '/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) throw new Error('Save failed');
+    resultsSaved = true;
+    btn.textContent = '✓ SAVED';
+    document.getElementById('save-status').innerHTML = '<span style="color: green;">Results saved!</span>';
+    document.getElementById('save-status').style.display = 'block';
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'SAVE MY RESULTS';
+    document.getElementById('save-status').innerHTML = '<span style="color: red;">Failed to save. Try again.</span>';
+    document.getElementById('save-status').style.display = 'block';
+  }
+}
+\`\`\`
 
 SECTION 6: NAVIGATION
 - Progress bar at top
@@ -511,6 +571,24 @@ WIZARD MODE STRUCTURE (when toolSpec.phases exists):
     <div id="ai-coach" class="ai-coach-section" style="display: none;">
       <!-- Same AI coach structure as classic mode -->
     </div>
+
+    <!-- SAVE RESULTS Section (MANDATORY) -->
+    <section class="result-section save-section" id="section-save">
+      <div class="save-container">
+        <button id="save-results-btn" class="btn-save" onclick="saveResults()">
+          SAVE MY RESULTS
+        </button>
+        <p class="save-hint">Save your analysis to track your progress over time</p>
+        <div id="save-status" class="save-status" style="display: none;">
+          <span class="save-success">✓ Results saved successfully!</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Export/Print Button -->
+    <section class="result-section export-section">
+      <button class="btn-export" onclick="window.print()">EXPORT AS PDF</button>
+    </section>
   </div>
 </div>
 \`\`\`
@@ -830,6 +908,99 @@ function findTeachingMoment(tag) {
 }
 \`\`\`
 
+5.5 SAVE RESULTS JAVASCRIPT (MANDATORY - LearnWorlds Integration)
+\`\`\`javascript
+// ========== USER IDENTIFICATION (LearnWorlds) ==========
+function getLearnWorldsUser() {
+  // Parse URL parameters for LearnWorlds user info
+  var urlParams = new URLSearchParams(window.location.search);
+  return {
+    userId: urlParams.get('lw_user_id') || urlParams.get('user_id') || null,
+    email: urlParams.get('lw_email') || urlParams.get('email') || null,
+    name: urlParams.get('lw_name') || urlParams.get('name') || null
+  };
+}
+
+// ========== SAVE RESULTS TO SUPABASE ==========
+var resultsSaved = false;
+
+async function saveResults() {
+  if (resultsSaved) {
+    showSaveStatus('Results already saved!', true);
+    return;
+  }
+
+  var saveBtn = document.getElementById('save-results-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'SAVING...';
+
+  try {
+    // Get user info from LearnWorlds URL params
+    var lwUser = getLearnWorldsUser();
+
+    // Collect all inputs from wizard state
+    var allInputs = {};
+    Object.keys(wizardState.phaseInputs).forEach(function(phaseId) {
+      Object.assign(allInputs, wizardState.phaseInputs[phaseId]);
+    });
+
+    // Build the result object
+    var resultData = {
+      verdict: currentVerdict || 'UNKNOWN',
+      score: currentScore || 0,
+      commitment: {
+        who: document.getElementById('action-who')?.textContent || '',
+        what: document.getElementById('action-what')?.textContent || '',
+        when: document.getElementById('action-when')?.textContent || ''
+      }
+    };
+
+    // Build payload for API
+    var payload = {
+      inputs: allInputs,
+      result: resultData,
+      learnworldsUserId: lwUser.userId,
+      userEmail: lwUser.email,
+      userName: lwUser.name,
+      source: lwUser.userId ? 'learnworlds' : 'direct'
+    };
+
+    // POST to the API
+    var response = await fetch(API_BASE + '/api/tools/' + TOOL_SLUG + '/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to save: ' + response.status);
+    }
+
+    var data = await response.json();
+    resultsSaved = true;
+    showSaveStatus('Results saved successfully!', true);
+    saveBtn.textContent = '✓ SAVED';
+
+    // Request AI analysis after save (018-tool-intelligence)
+    if (data.id) {
+      requestAIAnalysis(data.id, allInputs, resultData.verdict, resultData.score);
+    }
+
+  } catch (error) {
+    console.error('Save error:', error);
+    showSaveStatus('Failed to save. Please try again.', false);
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'SAVE MY RESULTS';
+  }
+}
+
+function showSaveStatus(message, success) {
+  var statusEl = document.getElementById('save-status');
+  statusEl.innerHTML = '<span class="' + (success ? 'save-success' : 'save-error') + '">' + message + '</span>';
+  statusEl.style.display = 'block';
+}
+\`\`\`
+
 6. WIZARD CSS STYLES
 \`\`\`css
 /* Wizard Container */
@@ -1049,6 +1220,74 @@ function findTeachingMoment(tag) {
 }
 .btn-continue:hover, .btn-confirm:hover { background: #333; }
 .btn-back:hover { background: #f5f5f5; }
+
+/* SAVE Button Styles */
+.save-section {
+  text-align: center;
+  padding: 40px 0;
+  border-top: 2px solid var(--black);
+}
+.save-container {
+  max-width: 400px;
+  margin: 0 auto;
+}
+.btn-save {
+  width: 100%;
+  background: var(--yellow);
+  color: var(--black);
+  border: 2px solid var(--black);
+  padding: 20px 40px;
+  font-family: var(--font-headline);
+  font-size: 18px;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+.btn-save:hover:not(:disabled) {
+  background: var(--black);
+  color: var(--yellow);
+}
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.save-hint {
+  color: var(--grey);
+  font-size: 14px;
+  margin-top: 12px;
+}
+.save-status {
+  margin-top: 16px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+.save-success {
+  color: #2e7d32;
+}
+.save-error {
+  color: #c62828;
+}
+
+/* Export Button */
+.export-section {
+  text-align: center;
+  padding-bottom: 40px;
+}
+.btn-export {
+  background: transparent;
+  color: var(--black);
+  border: 2px solid var(--black);
+  padding: 16px 32px;
+  font-family: var(--font-headline);
+  text-transform: uppercase;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-export:hover {
+  background: #f5f5f5;
+}
 \`\`\`
 
 7. BACKWARD COMPATIBILITY CHECK
