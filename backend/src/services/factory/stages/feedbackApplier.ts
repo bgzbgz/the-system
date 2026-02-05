@@ -42,7 +42,7 @@ export const feedbackApplierStage: Stage<FeedbackApplierInput, FeedbackApplierOu
     const response = await aiService.callClaude({
       systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 8192 // Same as Tool Builder for full HTML
+      maxTokens: 16384 // Match Tool Builder for full HTML output
     });
     const duration = Date.now() - startTime;
 
