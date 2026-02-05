@@ -16,18 +16,36 @@ import {
   ArtifactRow
 } from '../types';
 
+/**
+ * Map Supabase row (id) to Job model (job_id)
+ */
+function mapRowToJob(row: any): any {
+  if (!row) return row;
+  const { id, ...rest } = row;
+  return { ...rest, job_id: id, id };
+}
+
 // ========== JOBS ==========
 
 /**
  * Create a new job
+ * Maps job_id to id for Supabase compatibility
  */
-export async function createJob(job: JobInsert): Promise<Job> {
+export async function createJob(job: JobInsert | any): Promise<Job> {
   const supabase = getSupabase();
   const tenantId = getTenantId();
 
+  // Map job_id to id if present (for compatibility with Job model)
+  const { job_id, ...rest } = job;
+  const insertData = {
+    ...rest,
+    tenant_id: tenantId,
+    ...(job_id && { id: job_id })  // Map job_id to id
+  };
+
   const { data, error } = await supabase
     .from('jobs')
-    .insert({ ...job, tenant_id: tenantId })
+    .insert(insertData)
     .select()
     .single();
 
@@ -35,7 +53,7 @@ export async function createJob(job: JobInsert): Promise<Job> {
     throw new Error(`Failed to create job: ${error.message}`);
   }
 
-  return data;
+  return mapRowToJob(data);
 }
 
 /**
@@ -57,7 +75,7 @@ export async function getJob(jobId: string): Promise<Job | null> {
     throw new Error(`Failed to get job: ${error.message}`);
   }
 
-  return data;
+  return mapRowToJob(data);
 }
 
 /**
@@ -79,7 +97,7 @@ export async function getJobBySlug(slug: string): Promise<Job | null> {
     throw new Error(`Failed to get job by slug: ${error.message}`);
   }
 
-  return data;
+  return mapRowToJob(data);
 }
 
 /**
@@ -101,7 +119,7 @@ export async function updateJob(jobId: string, updates: JobUpdate): Promise<Job>
     throw new Error(`Failed to update job: ${error.message}`);
   }
 
-  return data;
+  return mapRowToJob(data);
 }
 
 /**
@@ -134,7 +152,7 @@ export async function listJobs(options?: {
   }
 
   return {
-    jobs: data || [],
+    jobs: (data || []).map(mapRowToJob),
     total: count || 0
   };
 }
