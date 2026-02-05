@@ -3,7 +3,7 @@
  * Spec: 019-ai-service-layer
  *
  * Anthropic Claude API integration using official SDK.
- * Model: claude-sonnet-4-20250514 (balanced capability/cost)
+ * Uses Sonnet for complex tasks, Haiku for simpler ones (cost optimization).
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -13,9 +13,12 @@ import logger from '../../utils/logger';
 
 // ========== CONSTANTS ==========
 
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_SONNET = 'claude-sonnet-4-20250514';  // For complex tasks (toolBuilder, QA)
+const CLAUDE_HAIKU = 'claude-3-5-haiku-20241022';   // For simpler tasks (secretary, templateDecider)
 const DEFAULT_MAX_TOKENS = 4096;
-const DEFAULT_TIMEOUT_MS = 300000; // 5 minutes timeout for API calls (increased for large HTML generation)
+const DEFAULT_TIMEOUT_MS = 180000; // 3 minutes timeout (reduced - with retries this is enough)
+const MAX_RETRIES = 2;  // Retry up to 2 times on timeout
+const RETRY_DELAY_MS = 2000;  // 2 second delay between retries
 
 // ========== CLAUDE PROVIDER ==========
 
@@ -49,9 +52,11 @@ export class ClaudeProvider implements IAIProvider {
   }
 
   /**
-   * Execute completion request using Claude API
+   * Execute completion request using Claude API with retry logic
+   * @param request - The completion request
+   * @param useHaiku - Use Haiku model for simpler/cheaper tasks (default: false)
    */
-  async complete(request: AICompletionRequest): Promise<AICompletionResponse> {
+  async complete(request: AICompletionRequest, useHaiku: boolean = false): Promise<AICompletionResponse> {
     if (!this.client) {
       throw new AIServiceError(
         'PROVIDER_UNAVAILABLE',
@@ -60,73 +65,106 @@ export class ClaudeProvider implements IAIProvider {
       );
     }
 
+    const model = useHaiku ? CLAUDE_HAIKU : CLAUDE_SONNET;
     const startTime = Date.now();
     const promptLength = request.systemPrompt.length + request.userPrompt.length;
 
     // Log start
     logger.info('AI call started', {
       provider: 'claude',
-      model: CLAUDE_MODEL,
+      model,
       promptLength,
+      maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
     });
 
-    try {
-      const response = await this.client.messages.create({
-        model: CLAUDE_MODEL,
-        max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
-        system: request.systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: request.userPrompt,
-          },
-        ],
-      });
+    let lastError: Error | null = null;
 
-      const durationMs = Date.now() - startTime;
+    // Retry loop for timeout errors
+    for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+      try {
+        const response = await this.client.messages.create({
+          model,
+          max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+          system: request.systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: request.userPrompt,
+            },
+          ],
+        });
 
-      // Extract content from response
-      const content = response.content
-        .filter((block) => block.type === 'text')
-        .map((block) => (block as { type: 'text'; text: string }).text)
-        .join('');
+        const durationMs = Date.now() - startTime;
 
-      // Extract token usage
-      const usage = {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      };
+        // Extract content from response
+        const content = response.content
+          .filter((block) => block.type === 'text')
+          .map((block) => (block as { type: 'text'; text: string }).text)
+          .join('');
 
-      // Log success
-      logger.info('AI call completed', {
-        provider: 'claude',
-        model: CLAUDE_MODEL,
-        durationMs,
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-      });
+        // Extract token usage
+        const usage = {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+        };
 
-      return {
-        content,
-        model: CLAUDE_MODEL,
-        provider: 'claude',
-        usage,
-        durationMs,
-      };
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : String(error);
+        // Log success
+        logger.info('AI call completed', {
+          provider: 'claude',
+          model,
+          durationMs,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          attempt,
+        });
 
-      // Log error
-      logger.error('AI call failed', {
-        provider: 'claude',
-        model: CLAUDE_MODEL,
-        error: errorMessage,
-        durationMs,
-      });
+        return {
+          content,
+          model,
+          provider: 'claude',
+          usage,
+          durationMs,
+        };
+      } catch (error) {
+        lastError = error as Error;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const isTimeout = errorMessage.toLowerCase().includes('timeout');
+        const isRateLimit = errorMessage.includes('429') || errorMessage.toLowerCase().includes('rate');
 
-      // Re-throw as AIServiceError
-      throw new AIServiceError('API_ERROR', `Claude API error: ${errorMessage}`, 'claude');
+        // Only retry on timeout or rate limit errors
+        if ((isTimeout || isRateLimit) && attempt <= MAX_RETRIES) {
+          const delay = RETRY_DELAY_MS * attempt; // Exponential-ish backoff
+          logger.warn('AI call failed, retrying...', {
+            provider: 'claude',
+            model,
+            error: errorMessage,
+            attempt,
+            maxRetries: MAX_RETRIES,
+            retryDelayMs: delay,
+          });
+          await this.sleep(delay);
+          continue;
+        }
+
+        // Log final error
+        const durationMs = Date.now() - startTime;
+        logger.error('AI call failed', {
+          provider: 'claude',
+          model,
+          error: errorMessage,
+          durationMs,
+          attempt,
+        });
+
+        throw new AIServiceError('API_ERROR', `Claude API error: ${errorMessage}`, 'claude');
+      }
     }
+
+    // Should never reach here, but just in case
+    throw new AIServiceError('API_ERROR', `Claude API error: ${lastError?.message || 'Unknown error'}`, 'claude');
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

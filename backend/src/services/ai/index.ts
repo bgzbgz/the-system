@@ -129,7 +129,8 @@ export class AIService {
       );
     }
 
-    return this.claudeProvider.complete(request);
+    // Pass useHaiku option to provider (ClaudeProvider.complete accepts this as 2nd param)
+    return (this.claudeProvider as any).complete(request, request.useHaiku ?? false);
   }
 
   /**

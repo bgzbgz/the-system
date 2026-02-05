@@ -34,12 +34,13 @@ ${input.contentSummary}
 
 Create a detailed audience profile for the users of this tool.`;
 
-    // Call Claude
+    // Call Claude Haiku for simple profiling (faster & cheaper)
     const startTime = Date.now();
     const response = await aiService.callClaude({
       systemPrompt: prompt.systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 4096
+      maxTokens: 1024,
+      useHaiku: true  // Use Haiku for simple analysis tasks
     });
     const duration = Date.now() - startTime;
 

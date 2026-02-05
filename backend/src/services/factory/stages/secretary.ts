@@ -33,12 +33,13 @@ export const secretaryStage: Stage<SecretaryInput, SecretaryOutput> = {
     // Build the full system prompt with context
     const systemPrompt = `${prompt.systemPrompt}\n\n## Fast Track Approach\n\n${approachContext}`;
 
-    // Call Claude to extract tool specification
+    // Call Claude Haiku for simple extraction (faster & cheaper)
     const startTime = Date.now();
     const response = await aiService.callClaude({
       systemPrompt,
       userPrompt: input.userRequest,
-      maxTokens: 4096
+      maxTokens: 2048,
+      useHaiku: true  // Use Haiku for simple extraction tasks
     });
     const duration = Date.now() - startTime;
 

@@ -23,6 +23,8 @@ export interface AICompletionRequest {
   maxTokens?: number;
   /** AI provider to use (default: 'claude') */
   provider?: AIProviderType;
+  /** Use faster/cheaper model (Haiku) for simpler tasks (default: false) */
+  useHaiku?: boolean;
 }
 
 /**
@@ -91,24 +93,26 @@ export class AIServiceError extends Error {
  */
 export const TOKEN_COSTS: Record<string, { input: number; output: number }> = {
   'claude-sonnet-4-20250514': { input: 3.00, output: 15.00 },
+  'claude-3-5-haiku-20241022': { input: 0.80, output: 4.00 },  // ~4x cheaper than Sonnet
   'claude-opus-4-20250514': { input: 15.00, output: 75.00 },
   'gemini-2.0-flash': { input: 0.075, output: 0.30 },
   'gemini-2.0-pro': { input: 1.25, output: 5.00 },
 };
 
 /**
- * Default token limits per stage
+ * Default token limits per stage (optimized for cost)
  */
 export const DEFAULT_TOKEN_LIMITS = {
-  secretary: { maxInput: 50000, maxOutput: 4096 },
-  courseProcessor: { maxInput: 100000, maxOutput: 8192 },
-  audienceProfiler: { maxInput: 20000, maxOutput: 2048 },
+  secretary: { maxInput: 50000, maxOutput: 2048 },      // Simple extraction - use Haiku
+  courseProcessor: { maxInput: 100000, maxOutput: 4096 },
+  audienceProfiler: { maxInput: 20000, maxOutput: 1024 }, // Simple task - use Haiku
   exampleGenerator: { maxInput: 20000, maxOutput: 4096 },
   copyWriter: { maxInput: 20000, maxOutput: 2048 },
-  toolBuilder: { maxInput: 50000, maxOutput: 16384 },
-  qaDepartment: { maxInput: 50000, maxOutput: 4096 },
-  feedbackApplier: { maxInput: 50000, maxOutput: 16384 },
-  brandGuardian: { maxInput: 50000, maxOutput: 2048 },
+  toolBuilder: { maxInput: 50000, maxOutput: 8192 },    // Reduced from 16K - 8K is enough for HTML
+  qaDepartment: { maxInput: 50000, maxOutput: 2048 },
+  feedbackApplier: { maxInput: 50000, maxOutput: 8192 },
+  brandGuardian: { maxInput: 50000, maxOutput: 1024 },  // Simple scoring - use Haiku
+  templateDecider: { maxInput: 20000, maxOutput: 512 }, // Very simple - use Haiku
   default: { maxInput: 50000, maxOutput: 4096 },
 };
 

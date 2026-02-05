@@ -30,12 +30,13 @@ export const templateDeciderStage: Stage<TemplateDeciderInput, TemplateDeciderOu
     // Build user message with tool spec
     const userMessage = `## Tool Specification\n\n${JSON.stringify(input.toolSpec, null, 2)}\n\nAnalyze this specification and select the most appropriate template pattern.`;
 
-    // Call Claude to decide template
+    // Call Claude Haiku for simple template decision (faster & cheaper)
     const startTime = Date.now();
     const response = await aiService.callClaude({
       systemPrompt: prompt.systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 2048
+      maxTokens: 512,
+      useHaiku: true  // Use Haiku for simple decisions
     });
     const duration = Date.now() - startTime;
 

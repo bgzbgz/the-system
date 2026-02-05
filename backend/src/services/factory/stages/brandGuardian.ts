@@ -31,12 +31,13 @@ ${input.toolHtml}
 
 Audit this tool for Fast Track brand compliance. Be STRICT.`;
 
-    // Call Claude
+    // Call Claude Haiku for brand checking (faster & cheaper)
     const startTime = Date.now();
     const response = await aiService.callClaude({
       systemPrompt: prompt.systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 4096
+      maxTokens: 1024,
+      useHaiku: true  // Use Haiku for simple scoring/checking
     });
     const duration = Date.now() - startTime;
 
