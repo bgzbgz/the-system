@@ -254,6 +254,12 @@ export class GitHubService {
 
       logOperation('fullDeploy', jobId, true, `deployed to ${deployedUrl}`);
 
+      // Log a reminder about GitHub Pages
+      console.log(`[GitHub] NOTE: If you get a 404 at ${deployedUrl}, ensure GitHub Pages is enabled:`);
+      console.log(`[GitHub]   1. Go to repo Settings → Pages`);
+      console.log(`[GitHub]   2. Set Source: "Deploy from a branch" → main → / (root)`);
+      console.log(`[GitHub]   3. Wait 1-5 minutes for propagation`);
+
       return {
         success: true,
         repoUrl: deployResult.repoUrl,

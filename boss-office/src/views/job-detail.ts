@@ -5,7 +5,7 @@ import { setCurrentJob, setCurrentJobLoading, showSuccess, showError, updateJobI
 import { getJob, approveJob, requestRevision, rejectJob, cancelJob } from '../api/jobs.ts';
 import { getLogs } from '../api/logs.ts';
 import { navigate } from '../utils/router.ts';
-import { renderPipelineVisualizer, mapJobStatusToPipeline, calculateProgress, type PipelineStage } from '../components/pipeline-visualizer.ts';
+import { renderPipelineVisualizer, mapJobStatusToPipeline, calculateProgress } from '../components/pipeline-visualizer.ts';
 import type { Job, JobStatus } from '../types/index.ts';
 import type { FactoryLog } from '../types/logs.ts';
 
