@@ -28,8 +28,8 @@ import { DeployedTool } from '../db/models/deployedTool';
 import * as toolCollectionService from '../db/services/toolCollectionService';
 import { ToolDefaults, CreateResponseInput } from '../db/models/toolCollection';
 
-// Supabase tool response service V2 (for saving responses to Supabase)
-import * as toolResponseService from '../db/supabase/services/toolResponseService_v2';
+// Supabase tool response service (for saving responses to Supabase)
+import * as toolResponseService from '../db/supabase/services/toolResponseService';
 
 const router = Router();
 
@@ -102,23 +102,15 @@ router.post(
       // Generate visitor ID if not provided
       const visitorId = req.body.visitorId || `anon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Generate unique response ID
-      const responseId = `resp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      // Build response data for Supabase (matching ToolResponseRow schema)
+      // Build response data for Supabase (matching actual tool_responses table schema)
       const responseData = {
         tool_slug: slug,
-        response_id: responseId,
         visitor_id: visitorId,
-        user_id: req.body.learnworldsUserId || null,
         user_name: req.body.userName || null,
         user_email: req.body.userEmail || null,
         learnworlds_user_id: req.body.learnworldsUserId || null,
-        answers: inputs,  // User's input values
+        inputs: inputs,   // User's input values (table column is "inputs" not "answers")
         result: result,   // Calculated result object
-        score: result.score || null,
-        verdict: result.verdict || null,
-        status: 'completed',
         source: req.body.source || 'direct',
         course_id: req.body.courseId || null,
         lesson_id: req.body.lessonId || null,
@@ -126,7 +118,7 @@ router.post(
       };
 
       // Save response to Supabase
-      const savedResponse = await toolResponseService.createResponse(responseData);
+      const savedResponse = await toolResponseService.createResponse(responseData as any);
 
       // Return 201 Created (FR-005)
       return res.status(201).json({
