@@ -68,6 +68,57 @@ AI-powered analysis layer for generated tools that transforms static GO/NO-GO ve
 ### Token Budget
 ~2000 tokens max per AI analysis call
 
+## Tool Depth Validation (017-bulletproof-factory)
+
+Ensures generated tools maintain connection to course content through strict validation.
+
+### CourseContext Endpoint
+`GET /api/tools/:slug/context` - Returns full course context for a tool
+
+**Response:**
+```json
+{
+  "success": true,
+  "tool_slug": "value-prop",
+  "tool_name": "Value Proposition Calculator",
+  "courseContext": {
+    "terminology": [{ "term": "Power of One", "definition": "..." }],
+    "frameworks": [{ "name": "7 Levers", "items": [...] }],
+    "expertQuotes": [{ "quote": "...", "source": "..." }],
+    "inputRanges": [{ "fieldId": "revenue", "min": 0, "max": 1000000 }]
+  }
+}
+```
+
+### Output Validation Retry Mechanism
+When tool HTML is generated, output validation checks for required course content. If validation fails:
+
+1. **First attempt**: Generate HTML normally
+2. **If validation fails**: Build explicit fix instructions from errors
+3. **Retry up to 2 more times** with fix instructions appended to prompt
+4. **After 3 attempts**: Proceed to QA (which can also catch issues)
+
+**Max retries**: 2 (3 total attempts)
+
+### Validation Error Types
+
+| Error Code | Severity | Description |
+|------------|----------|-------------|
+| `FRAMEWORK_ITEM_MISSING_IN_HTML` | ERROR | Framework item not in generated HTML |
+| `EXPERT_QUOTE_MISSING_IN_HTML` | ERROR | Expert quote not displayed |
+| `CRITICAL_TERMINOLOGY_MISSING` | ERROR | Term from framework missing in HTML |
+| `TERMINOLOGY_GENERICIZED` | WARNING | Non-critical term may be missing |
+
+**Critical vs Non-Critical Terminology:**
+- Terms appearing in framework item labels/definitions → CRITICAL (blocking error)
+- Other course terms → non-critical (warning only)
+
+### Key Files
+- `backend/src/services/factory/validation.ts` - Validation functions
+- `backend/src/services/factory/index.ts` - Retry loop implementation
+- `backend/src/services/factory/stages/toolBuilder.ts` - Fix instructions handling
+- `backend/src/routes/tools.ts` - CourseContext endpoint
+
 ## Multi-Step Wizard Tools (019-multistep-wizard-tools)
 
 Transforms single-step calculator tools into multi-step wizard tools with conditional branching. Tools become guided decision journeys that teach while they calculate.
