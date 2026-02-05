@@ -9,6 +9,7 @@ export function renderHeader(container: HTMLElement): void {
   const isCreateActive = currentRoute === '/create' || currentRoute === '/submit';
   const isInboxActive = currentRoute === '/inbox' || currentRoute.startsWith('/job') || currentRoute.startsWith('/preview');
   const isMetricsActive = currentRoute === '/metrics';
+  const isPrinciplesActive = currentRoute === '/principles';
 
   container.innerHTML = `
     <div class="header">
@@ -27,6 +28,9 @@ export function renderHeader(container: HTMLElement): void {
         </a>
         <a href="#/metrics" class="header__link ${isMetricsActive ? 'header__link--active' : ''}">
           METRICS
+        </a>
+        <a href="#/principles" class="header__link ${isPrinciplesActive ? 'header__link--active' : ''}">
+          PRINCIPLES
         </a>
       </nav>
     </div>
