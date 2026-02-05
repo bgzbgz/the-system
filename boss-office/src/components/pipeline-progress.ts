@@ -12,8 +12,8 @@ export const PIPELINE_STAGES = [
   { id: 'complete', name: 'COMPLETE', description: 'Ready for review' }
 ] as const;
 
-// Average times per stage (in seconds) - used for estimation
-const STAGE_TIMES = {
+// Average times per stage (in seconds) - exported for potential future use
+export const STAGE_TIMES = {
   secretary: 5,
   templateDecider: 4,
   toolBuilder: 45,

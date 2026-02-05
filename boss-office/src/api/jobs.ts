@@ -2,7 +2,6 @@ import { api } from './client.ts';
 import type {
   Job,
   JobStatus,
-  JobsListResponse,
   JobResponse,
   CreateJobRequest,
 } from '../types/index.ts';
@@ -18,6 +17,7 @@ interface BackendJobsResponse {
     tool_name?: string;
     tool_html?: string; // Backend uses tool_html
     deployed_url?: string;
+    workflow_error?: string; // Error message when factory/QA fails
     created_at: string;
     updated_at: string;
   }>;
@@ -47,6 +47,7 @@ export async function listJobs(status?: JobStatus): Promise<Job[]> {
     qaReport: null, // Not returned in list
     deployedUrl: job.deployed_url || null,
     revisionNotes: [],
+    workflowError: job.workflow_error || null,
     createdAt: job.created_at,
     updatedAt: job.updated_at,
   }));
@@ -64,6 +65,7 @@ interface BackendJobResponse {
     file_content?: string;
     tool_html?: string; // Backend uses tool_html not generated_html
     deployed_url?: string;
+    workflow_error?: string; // Error message when factory/QA fails
     decision?: string;
     teaching_point?: string;
     inputs?: string;
@@ -113,6 +115,7 @@ export async function getJob(jobId: string): Promise<Job> {
     } : null,
     deployedUrl: job.deployed_url || null,
     revisionNotes: job.revision_notes ? [job.revision_notes] : [],
+    workflowError: job.workflow_error || null,
     createdAt: job.created_at,
     updatedAt: job.updated_at,
   };
@@ -156,6 +159,7 @@ export async function createJob(data: CreateJobRequest): Promise<Job> {
     qaReport: null,
     deployedUrl: null,
     revisionNotes: [],
+    workflowError: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -200,6 +204,7 @@ export async function approveJob(jobId: string): Promise<JobResponse> {
     qaReport: null,
     deployedUrl: response.job.deployed_url || response.deployed_url || null,
     revisionNotes: [],
+    workflowError: null,
     createdAt: response.job.created_at,
     updatedAt: response.job.updated_at,
   } : {
@@ -215,6 +220,7 @@ export async function approveJob(jobId: string): Promise<JobResponse> {
     qaReport: null,
     deployedUrl: response.deployed_url || null,
     revisionNotes: [],
+    workflowError: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -260,6 +266,7 @@ export async function requestRevision(jobId: string, notes: string): Promise<Job
     qaReport: null,
     deployedUrl: null,
     revisionNotes: job.revision_notes ? [job.revision_notes] : [],
+    workflowError: null,
     createdAt: job.created_at,
     updatedAt: job.updated_at,
   };

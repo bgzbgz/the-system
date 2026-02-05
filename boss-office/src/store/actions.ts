@@ -86,6 +86,16 @@ export function updateJobInList(updatedJob: Job): void {
   store.setState({ jobs: updatedJobs });
 }
 
+// Action: Add a new job to the list (at the beginning for immediate visibility)
+export function addJob(job: Job): void {
+  const { jobs } = store.getState();
+  // Only add if not already in list (avoid duplicates)
+  const exists = jobs.some((j) => j._id === job._id);
+  if (!exists) {
+    store.setState({ jobs: [job, ...jobs] });
+  }
+}
+
 // Action: Set file upload
 export function setFileUpload(fileUpload: FileUpload | null): void {
   store.setState({ fileUpload });

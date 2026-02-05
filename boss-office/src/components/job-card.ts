@@ -19,7 +19,9 @@ const STATUS_CONFIG: Record<
   QA_FAILED: { icon: '&#9888;', label: 'QA FAILED', badgeClass: 'badge--error' },
   READY_FOR_REVIEW: { icon: '&#10004;', label: 'READY FOR REVIEW', badgeClass: 'badge--ready' },
   REVISION_REQUESTED: { icon: '&#128393;', label: 'REVISION REQUESTED', badgeClass: 'badge--processing' },
+  DEPLOYING: { icon: '&#128640;', label: 'DEPLOYING', badgeClass: 'badge--processing' },
   DEPLOYED: { icon: '&#127881;', label: 'DEPLOYED', badgeClass: 'badge--success' },
+  DEPLOY_FAILED: { icon: '&#9888;', label: 'DEPLOY FAILED', badgeClass: 'badge--error' },
   REJECTED: { icon: '&#10006;', label: 'REJECTED', badgeClass: 'badge--error' },
 };
 
@@ -40,6 +42,7 @@ export function renderJobCard(job: Job): string {
   const showProgress = isProcessing(job.status);
   const progressHtml = showProgress ? renderCompactProgress(job.status, job.createdAt) : '';
   const isDeployed = job.status === 'DEPLOYED' && job.deployedUrl;
+  const isFailed = job.status === 'QA_FAILED';
 
   // Deployed URL section for deployed tools
   const deployedUrlHtml = isDeployed ? `
@@ -57,6 +60,13 @@ export function renderJobCard(job: Job): string {
     </div>
   ` : '';
 
+  // Error message section for failed jobs
+  const errorHtml = isFailed && job.workflowError ? `
+    <div class="job-card__error" style="margin-top: 4px; padding: 4px 8px; background: var(--color-black); color: var(--color-white); font-size: 0.75rem; border-radius: 2px;">
+      <strong>Error:</strong> ${escapeHtml(job.workflowError.substring(0, 100))}${job.workflowError.length > 100 ? '...' : ''}
+    </div>
+  ` : '';
+
   return `
     <div class="job-card ${showProgress ? 'job-card--processing' : ''} ${isDeployed ? 'job-card--deployed' : ''}" data-job-id="${job._id}">
       <div class="job-card__status">
@@ -71,6 +81,7 @@ export function renderJobCard(job: Job): string {
         </div>
         ${progressHtml}
         ${deployedUrlHtml}
+        ${errorHtml}
       </div>
       <div class="job-card__actions">
         <button

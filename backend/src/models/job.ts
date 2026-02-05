@@ -169,6 +169,7 @@ export interface JobListItem {
   updated_at: string;
   tool_name?: string;
   deployed_url?: string;
+  workflow_error?: string;
 }
 
 /**
@@ -467,7 +468,8 @@ export function jobToListItem(job: Job): JobListItem {
     created_at: toISOString(job.created_at),
     updated_at: toISOString(job.updated_at),
     ...(job.tool_name && { tool_name: job.tool_name }),
-    ...(job.deployed_url && { deployed_url: job.deployed_url })
+    ...(job.deployed_url && { deployed_url: job.deployed_url }),
+    ...(job.workflow_error && { workflow_error: job.workflow_error })
   };
 }
 

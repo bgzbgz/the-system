@@ -103,8 +103,8 @@ function renderPreviewContent(container: HTMLElement): void {
     return;
   }
 
-  // Render tool preview
-  renderToolPreview(previewContainer, currentJob.generatedHtml);
+  // Render tool preview (with error message if available)
+  renderToolPreview(previewContainer, currentJob.generatedHtml, currentJob.workflowError);
 
   // Render QA report
   renderQAReport(qaContainer, currentJob.qaReport);

@@ -4,6 +4,7 @@ import {
   resetSubmissionForm,
   showSuccess,
   showError,
+  addJob,
 } from '../store/actions.ts';
 import { renderFileUpload, subscribeFileUpload } from '../components/file-upload.ts';
 import { renderQuestionnaire, subscribeQuestionnaire } from '../components/questionnaire.ts';
@@ -125,10 +126,13 @@ async function handleSubmit(container: HTMLElement): Promise<void> {
     };
 
     // Create job via API
-    await createJob(request);
+    const newJob = await createJob(request);
+
+    // Add job to list immediately so progress bar shows
+    addJob(newJob);
 
     // Success!
-    showSuccess('Tool request submitted successfully!');
+    showSuccess('Tool request submitted - processing started!');
 
     // Reset form
     resetSubmissionForm();

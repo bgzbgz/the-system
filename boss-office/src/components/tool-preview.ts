@@ -1,14 +1,30 @@
 // Tool Preview Component - Sandboxed iframe for viewing generated tools
 
+// Escape HTML to prevent XSS in error messages
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // Render the tool preview iframe
-export function renderToolPreview(container: HTMLElement, html: string | null): void {
+export function renderToolPreview(
+  container: HTMLElement,
+  html: string | null,
+  errorMessage?: string | null
+): void {
   if (!html) {
+    const errorInfo = errorMessage
+      ? `<p class="empty-state__message" style="color: #ff6b6b; margin-top: 8px;">Error: ${escapeHtml(errorMessage)}</p>`
+      : '';
+
     container.innerHTML = `
       <div class="preview__iframe-container">
         <div class="empty-state" style="height: 100%; display: flex; flex-direction: column; justify-content: center;">
           <div class="empty-state__icon">&#128194;</div>
           <h2 class="empty-state__title">NO PREVIEW</h2>
-          <p class="empty-state__message">Tool has not been generated yet</p>
+          <p class="empty-state__message">Tool generation failed or is still in progress</p>
+          ${errorInfo}
         </div>
       </div>
     `;

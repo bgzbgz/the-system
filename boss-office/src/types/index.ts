@@ -7,7 +7,9 @@ export type JobStatus =
   | 'QA_FAILED'
   | 'READY_FOR_REVIEW'
   | 'REVISION_REQUESTED'
+  | 'DEPLOYING'
   | 'DEPLOYED'
+  | 'DEPLOY_FAILED'
   | 'REJECTED';
 
 // Category enum
@@ -53,6 +55,7 @@ export interface Job {
   qaReport: QAReport | null;
   deployedUrl: string | null;
   revisionNotes: string[];
+  workflowError: string | null;  // Error message when factory/QA fails
   createdAt: string;
   updatedAt: string;
 }

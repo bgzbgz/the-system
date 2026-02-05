@@ -1,9 +1,7 @@
 import type { ApiError } from '../types/index.ts';
 
-// API base URL - uses Vite proxy in dev, Railway backend in production
-const BASE_URL = import.meta.env.DEV
-  ? '/api'
-  : 'https://the-system-production.up.railway.app/api';
+// API base URL - always use Railway backend (no local backend needed)
+const BASE_URL = 'https://the-system-production.up.railway.app/api';
 
 // Custom error class for API errors
 export class ApiClientError extends Error {
