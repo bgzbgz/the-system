@@ -97,7 +97,7 @@ CRITICAL: Do NOT skip or genericize any of the items listed above. Each one MUST
     const response = await aiService.callClaude({
       systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 8192 // Reduced from 16K - 8K is enough for most HTML tools
+      maxTokens: 16384 // Full token limit for high-quality HTML generation
     });
     const duration = Date.now() - startTime;
 
