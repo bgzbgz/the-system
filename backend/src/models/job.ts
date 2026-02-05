@@ -391,6 +391,18 @@ export function isValidJobStatus(status: string): status is JobStatus {
   return Object.values(JobStatus).includes(status as JobStatus);
 }
 
+// ========== HELPER FUNCTIONS ==========
+
+/**
+ * Safely convert a date value to ISO string
+ * Handles both Date objects and string values (from Supabase)
+ */
+function toISOString(value: Date | string | undefined | null): string {
+  if (!value) return new Date().toISOString();
+  if (typeof value === 'string') return value;
+  return value.toISOString();
+}
+
 // ========== FACTORY FUNCTIONS ==========
 
 /**
@@ -452,8 +464,8 @@ export function jobToListItem(job: Job): JobListItem {
     slug: job.slug,
     category: job.category,
     status: job.status,
-    created_at: job.created_at.toISOString(),
-    updated_at: job.updated_at.toISOString(),
+    created_at: toISOString(job.created_at),
+    updated_at: toISOString(job.updated_at),
     ...(job.tool_name && { tool_name: job.tool_name }),
     ...(job.deployed_url && { deployed_url: job.deployed_url })
   };
@@ -469,8 +481,8 @@ export function jobToDetail(job: Job): JobDetail {
     slug: job.slug,
     category: job.category,
     status: job.status,
-    created_at: job.created_at.toISOString(),
-    updated_at: job.updated_at.toISOString(),
+    created_at: toISOString(job.created_at),
+    updated_at: toISOString(job.updated_at),
     file_content: job.file_content,
     decision: job.decision,
     teaching_point: job.teaching_point,
@@ -481,7 +493,7 @@ export function jobToDetail(job: Job): JobDetail {
     ...(job.template_type && { template_type: job.template_type }),
     ...(job.qa_report && { qa_report: job.qa_report }),
     ...(job.deployed_url && { deployed_url: job.deployed_url }),
-    ...(job.deployed_at && { deployed_at: job.deployed_at.toISOString() }),
+    ...(job.deployed_at && { deployed_at: toISOString(job.deployed_at) }),
     ...(job.revision_notes && { revision_notes: job.revision_notes }),
     ...(job.workflow_error && { workflow_error: job.workflow_error })
   };
@@ -495,7 +507,7 @@ export function jobToResponse(job: Job): JobResponse {
     job_id: job.job_id,
     file_name: job.file_name,
     original_filename: job.file_name,
-    created_at: job.created_at.toISOString(),
+    created_at: toISOString(job.created_at),
     status: job.status,
     slug: job.slug,
     category: job.category
@@ -508,10 +520,10 @@ export function jobToResponse(job: Job): JobResponse {
     response.file_size_bytes = job.file_size_bytes;
   }
   if (job.submitted_at) {
-    response.submitted_at = job.submitted_at.toISOString();
+    response.submitted_at = toISOString(job.submitted_at);
   }
   if (job.last_attempt_at) {
-    response.last_attempt_at = job.last_attempt_at.toISOString();
+    response.last_attempt_at = toISOString(job.last_attempt_at);
   }
   if (job.failure_reason) {
     response.failure_reason = job.failure_reason;
@@ -526,7 +538,7 @@ export function jobToResponse(job: Job): JobResponse {
     response.qa_status = job.qa_status;
   }
   if (job.callback_received_at) {
-    response.callback_received_at = job.callback_received_at.toISOString();
+    response.callback_received_at = toISOString(job.callback_received_at);
   }
   if (job.workflow_error) {
     response.workflow_error = job.workflow_error;
@@ -547,7 +559,7 @@ export function jobToCreatedResponse(
     job_id: job.job_id,
     slug: job.slug,
     status: job.status,
-    created_at: job.created_at.toISOString(),
+    created_at: toISOString(job.created_at),
     workflow_triggered: workflowTriggered,
     ...(workflowError && { workflow_error: workflowError })
   };
