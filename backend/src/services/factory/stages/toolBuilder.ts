@@ -81,6 +81,17 @@ ${JSON.stringify(input.toolSpec.defaultPhasePath || input.toolSpec.phases!.map(p
       userMessage += `\n\n## Template Pattern\n\nUse the ${input.template} template pattern for this tool.`;
     }
 
+    // Fix #1: Handle output fix instructions from validation retry
+    if (input.toolSpec._outputFixInstructions) {
+      userMessage += `\n\n## ⚠️ OUTPUT VALIDATION FIX REQUIRED
+
+The previous HTML generation failed output validation. The following issues MUST be fixed in this regeneration:
+
+${input.toolSpec._outputFixInstructions}
+
+CRITICAL: Do NOT skip or genericize any of the items listed above. Each one MUST appear verbatim in the generated HTML.`;
+    }
+
     // Call Claude to generate HTML
     const startTime = Date.now();
     const response = await aiService.callClaude({

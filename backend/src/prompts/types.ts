@@ -132,6 +132,8 @@ export interface ToolSpec {
       }>;
     };
   };
+  /** Fix instructions from output validation retry (internal use only) */
+  _outputFixInstructions?: string;
 }
 
 /**

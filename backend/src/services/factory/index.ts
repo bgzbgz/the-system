@@ -54,7 +54,7 @@ import {
 import { CourseProcessor } from './courseProcessor';
 import { aiService } from '../ai';
 import { validateToolOutput, formatValidationResult } from './validation';
-import { BuilderContext } from './types';
+import { BuilderContext, ValidationIssue } from './types';
 import { scoreTool } from '../qualityScoring';
 import * as qualityStore from '../../db/services/qualityStore';
 
@@ -240,17 +240,32 @@ export class ToolFactory {
     }
 
     // Stage 6: Tool Builder - Generate HTML (with enhanced context)
-    const builderOutput = await this.executeStage<ToolBuilderInput, ToolBuilderOutput>(
-      'toolBuilder',
-      { toolSpec: enhancedSpec, template },
-      context
-    );
+    // Fix #1: Retry loop for output validation failures
+    const MAX_OUTPUT_RETRIES = 2;
+    let outputRetryCount = 0;
+    let builderOutput: ToolBuilderOutput;
+    let finalValidationResult: ReturnType<typeof validateToolOutput> | undefined;
 
-    // Stage 6.5: Output Validation - Verify course content appears in HTML
     const builderContext = (enhancedSpec as ToolSpec & { _builderContext?: BuilderContext })._builderContext;
-    if (builderContext && builderContext.frameworkItems.length > 0) {
+    const hasBuilderContext = builderContext && builderContext.frameworkItems.length > 0;
+
+    while (outputRetryCount <= MAX_OUTPUT_RETRIES) {
+      // Generate HTML
+      builderOutput = await this.executeStage<ToolBuilderInput, ToolBuilderOutput>(
+        'toolBuilder',
+        { toolSpec: enhancedSpec, template },
+        context
+      );
+
+      // If no builder context, skip validation and exit loop
+      if (!hasBuilderContext) {
+        console.log(`[Factory] Skipping output validation - no builder context or framework items`);
+        break;
+      }
+
+      // Stage 6.5: Output Validation - Verify course content appears in HTML
       const outputValidationStartTime = Date.now();
-      console.log(`[Factory] Running Output Validation for job ${request.jobId}`);
+      console.log(`[Factory] Running Output Validation for job ${request.jobId} (attempt ${outputRetryCount + 1}/${MAX_OUTPUT_RETRIES + 1})`);
       const outputValidation = validateToolOutput(builderOutput.html, builderContext);
 
       // Log validation results using structured logger
@@ -266,11 +281,27 @@ export class ToolFactory {
         console.log(`[Factory] Output validation details:\n${formatValidationResult(outputValidation)}`);
       }
 
-      // Note: We continue to QA even if output validation fails
-      // QA will catch the issues and feedback applier can fix them
-    } else {
-      console.log(`[Factory] Skipping output validation - no builder context or framework items`);
+      finalValidationResult = outputValidation;
+
+      // If validation passed or we've exhausted retries, exit loop
+      if (outputValidation.passed || outputRetryCount >= MAX_OUTPUT_RETRIES) {
+        if (!outputValidation.passed && outputRetryCount >= MAX_OUTPUT_RETRIES) {
+          console.log(`[Factory] Output validation failed after ${MAX_OUTPUT_RETRIES + 1} attempts, proceeding to QA`);
+        }
+        break;
+      }
+
+      // Build fix instructions from validation errors
+      const fixInstructions = this.buildOutputFixInstructions(outputValidation.errors);
+      console.log(`[Factory] Output validation failed with ${outputValidation.errors.length} errors, retrying with fix instructions`);
+
+      // Set fix instructions on the spec for the next attempt
+      enhancedSpec._outputFixInstructions = fixInstructions;
+      outputRetryCount++;
     }
+
+    // Clear fix instructions after loop (don't want them persisting)
+    delete enhancedSpec._outputFixInstructions;
 
     // Stage 7: Brand Guardian - Verify brand compliance
     console.log(`[Factory] Running Brand Guardian for job ${request.jobId}`);
@@ -488,6 +519,32 @@ export class ToolFactory {
   }
 
   // ========== HELPERS ==========
+
+  /**
+   * Build fix instructions from output validation errors
+   * Fix #1: Used for output validation retry mechanism
+   */
+  private buildOutputFixInstructions(errors: ValidationIssue[]): string {
+    const instructions: string[] = [];
+
+    for (const error of errors) {
+      switch (error.code) {
+        case 'FRAMEWORK_ITEM_MISSING_IN_HTML':
+          instructions.push(`- MISSING FRAMEWORK ITEM: Include the exact text "${error.expected}" in the HTML. This is a required course framework item.`);
+          break;
+        case 'EXPERT_QUOTE_MISSING_IN_HTML':
+          instructions.push(`- MISSING EXPERT QUOTE: Include the quote "${error.expected}" with proper attribution in the results section.`);
+          break;
+        case 'CRITICAL_TERMINOLOGY_MISSING':
+          instructions.push(`- MISSING CRITICAL TERM: The term "${error.expected}" MUST appear in the HTML. It is a key course term.`);
+          break;
+        default:
+          instructions.push(`- ${error.message}`);
+      }
+    }
+
+    return instructions.join('\n');
+  }
 
   /**
    * Validate request has required fields

@@ -303,17 +303,34 @@ export function validateToolOutput(
     }
   }
 
-  // Check terminology usage (warning)
+  // Check terminology usage
+  // Fix #4: Critical terms (those appearing in framework items) are ERRORS, not warnings
   for (const term of context.terminology) {
     const termLower = term.term.toLowerCase();
     if (!htmlLower.includes(termLower)) {
-      warnings.push({
-        code: 'TERMINOLOGY_GENERICIZED',
-        message: `Course term "${term.term}" may have been genericized. Verify it appears in the tool.`,
-        field: `terminology.${term.term}`,
-        expected: term.term,
-        actual: 'Term may be missing or genericized'
-      });
+      // Check if term is critical (appears in framework item labels or definitions)
+      const isCritical = context.frameworkItems.some(item =>
+        item.label.toLowerCase().includes(termLower) ||
+        item.definition.toLowerCase().includes(termLower)
+      );
+
+      if (isCritical) {
+        errors.push({
+          code: 'CRITICAL_TERMINOLOGY_MISSING',
+          message: `Critical course term "${term.term}" not found in generated HTML. This term is required because it appears in the framework.`,
+          field: `terminology.${term.term}`,
+          expected: term.term,
+          actual: 'Not found in HTML'
+        });
+      } else {
+        warnings.push({
+          code: 'TERMINOLOGY_GENERICIZED',
+          message: `Course term "${term.term}" may have been genericized. Verify it appears in the tool.`,
+          field: `terminology.${term.term}`,
+          expected: term.term,
+          actual: 'Term may be missing or genericized'
+        });
+      }
     }
   }
 

@@ -450,7 +450,8 @@ export type ValidationErrorCode =
   // Output errors
   | 'FRAMEWORK_ITEM_MISSING_IN_HTML'
   | 'EXPERT_QUOTE_MISSING_IN_HTML'
-  | 'TERMINOLOGY_GENERICIZED';
+  | 'TERMINOLOGY_GENERICIZED'
+  | 'CRITICAL_TERMINOLOGY_MISSING';
 
 /**
  * A single validation issue

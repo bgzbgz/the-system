@@ -630,6 +630,66 @@ router.get(
   }
 );
 
+// ========== GET /api/tools/:slug/context ==========
+
+/**
+ * Get full CourseContext for a tool
+ * Fix #3: Expose CourseContext via public API
+ *
+ * Returns the tool's course connection data including:
+ * - terminology: Course-specific terms with usage guidance
+ * - frameworks: Numbered frameworks extracted from course
+ * - expertQuotes: Quotes from course instructors/authors
+ * - inputRanges: Expected ranges for numeric inputs
+ */
+router.get(
+  '/:slug/context',
+  validateSlugMiddleware,
+  async (req: Request, res: Response) => {
+    const { slug } = req.params;
+
+    try {
+      if (!isConnected()) {
+        return res.status(503).json({
+          success: false,
+          error: 'Service temporarily unavailable'
+        });
+      }
+
+      const tool = await getDeployedToolBySlug(slug);
+      if (!tool) {
+        return res.status(404).json({
+          success: false,
+          error: 'Tool not found',
+          code: 'TOOL_NOT_FOUND'
+        });
+      }
+
+      const courseContext = buildCourseContext(tool);
+
+      return res.status(200).json({
+        success: true,
+        tool_slug: slug,
+        tool_name: tool.tool_name,
+        courseContext: {
+          terminology: courseContext.terminology,
+          frameworks: courseContext.frameworks,
+          expertQuotes: courseContext.expertQuotes,
+          inputRanges: courseContext.inputRanges
+        }
+      });
+
+    } catch (error) {
+      logger.logError('Error getting course context', error as Error, { slug });
+
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+);
+
 // ========== GET /api/tools/:slug/analyses (Admin) ==========
 
 /**
