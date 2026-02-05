@@ -21,9 +21,6 @@ import { triggerMongoSetup, generateCollectionName, getWorkflowRun } from './wor
 import { jobService, jobArtifactService, toolDefaultService } from '../../db/supabase';
 import { JobStatus, Job } from '../../models/job';
 
-// Legacy job store import for backward compatibility during migration
-import { getJob, updateJob } from '../jobStore';
-
 // ========== DEFAULTS BUILDER (Feature 021) ==========
 
 /**
@@ -179,8 +176,8 @@ export class GitHubService {
   async fullDeploy(jobId: string): Promise<FullDeployResult> {
     logOperation('fullDeploy', jobId, true, 'starting');
 
-    // Step 1: Get and validate job from in-memory store
-    const job = getJob(jobId);
+    // Step 1: Get and validate job from Supabase
+    const job = await jobService.getJob(jobId);
 
     if (!job) {
       logOperation('fullDeploy', jobId, false, 'Job not found');
@@ -198,7 +195,10 @@ export class GitHubService {
       };
     }
 
-    if (!job.tool_html) {
+    // Get tool HTML from artifacts table
+    const toolHtml = await jobArtifactService.getToolHtml(jobId);
+
+    if (!toolHtml) {
       logOperation('fullDeploy', jobId, false, 'Job missing tool_html');
       return {
         success: false,
@@ -207,7 +207,7 @@ export class GitHubService {
     }
 
     const slug = job.slug;
-    const html = job.tool_html;
+    const html = toolHtml;
 
     try {
       // Step 2: Deploy tool HTML (US1)
@@ -215,7 +215,7 @@ export class GitHubService {
 
       if (!deployResult.success) {
         // Deployment failed - update status back
-        updateJob(jobId, { status: JobStatus.READY_FOR_REVIEW });
+        await jobService.updateJob(jobId, { status: JobStatus.READY_FOR_REVIEW });
         logOperation('fullDeploy', jobId, false, `deploy failed: ${deployResult.error}`);
         return {
           success: false,
@@ -247,7 +247,7 @@ export class GitHubService {
 
       // Step 5: Update job with deployment info and status
       const deployedUrl = deployResult.pagesUrl || deployResult.repoUrl || '';
-      updateJob(jobId, {
+      await jobService.updateJob(jobId, {
         status: JobStatus.DEPLOYED,
         deployed_url: deployedUrl
       });
@@ -263,7 +263,7 @@ export class GitHubService {
       };
     } catch (error) {
       // Unexpected error - transition back to READY_FOR_REVIEW
-      updateJob(jobId, { status: JobStatus.READY_FOR_REVIEW });
+      await jobService.updateJob(jobId, { status: JobStatus.READY_FOR_REVIEW });
 
       const message = error instanceof Error ? error.message : String(error);
       logOperation('fullDeploy', jobId, false, message);

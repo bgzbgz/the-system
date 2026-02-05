@@ -1109,7 +1109,7 @@ LOOK FOR IN _courseContext:
 - deepContent.sprintChecklist[] - USE EXACTLY
 
 RESPONSE SAVING (MANDATORY):
-Every tool saves to MongoDB via POST /api/tools/{slug}/responses
+Every tool saves via POST to API_BASE + '/api/tools/' + TOOL_SLUG + '/responses'
 
 OUTPUT:
 Return ONLY the complete HTML code. No explanations - just raw HTML starting with <!DOCTYPE html>.
