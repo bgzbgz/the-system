@@ -9,6 +9,54 @@
 import { DeployResult, GitHubConfig, GitHubErrorType } from './types';
 import { getOctokit, getGitHubConfig, withRetry, logOperation, classifyError } from './client';
 
+// ========== GITHUB PAGES VERIFICATION ==========
+
+/**
+ * Wait for GitHub Pages to be live by polling the URL
+ * Returns the URL only if it becomes accessible, null otherwise
+ *
+ * @param url - The GitHub Pages URL to check
+ * @param maxAttempts - Maximum polling attempts (default 20 = ~2 minutes)
+ * @param intervalMs - Delay between attempts (default 6000ms = 6 seconds)
+ * @returns The URL if live, null if timeout
+ */
+export async function waitForPagesLive(
+  url: string,
+  maxAttempts: number = 20,
+  intervalMs: number = 6000
+): Promise<string | null> {
+  logOperation('waitForPagesLive', url, true, `starting (max ${maxAttempts} attempts)`);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+
+      if (response.ok) {
+        logOperation('waitForPagesLive', url, true, `live after ${attempt} attempts`);
+        return url;
+      }
+
+      // 404 means not yet propagated, keep waiting
+      if (response.status === 404) {
+        logOperation('waitForPagesLive', url, true, `attempt ${attempt}/${maxAttempts} - 404, waiting...`);
+      } else {
+        logOperation('waitForPagesLive', url, false, `unexpected status ${response.status}`);
+      }
+    } catch (error) {
+      // Network error, keep trying
+      logOperation('waitForPagesLive', url, true, `attempt ${attempt}/${maxAttempts} - network error, waiting...`);
+    }
+
+    // Wait before next attempt (skip wait on last attempt)
+    if (attempt < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  logOperation('waitForPagesLive', url, false, `timeout after ${maxAttempts} attempts`);
+  return null;
+}
+
 // ========== URL GENERATION ==========
 
 /**

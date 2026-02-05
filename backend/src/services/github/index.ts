@@ -14,7 +14,7 @@ import {
   FullDeployResult
 } from './types';
 import { getGitHubConfig, isGitHubConfigured, logOperation } from './client';
-import { deployTool } from './deploy';
+import { deployTool, waitForPagesLive } from './deploy';
 import { triggerMongoSetup, generateCollectionName, getWorkflowRun } from './workflows';
 
 // Import job services (Supabase)
@@ -245,25 +245,40 @@ export class GitHubService {
         console.warn(`[GitHub] Workflow trigger error for ${jobId}:`, e);
       }
 
-      // Step 5: Update job with deployment info and status
-      const deployedUrl = deployResult.pagesUrl || deployResult.repoUrl || '';
+      // Step 5: Wait for GitHub Pages to be live before returning URL
+      let verifiedPagesUrl: string | null = null;
+      if (deployResult.pagesUrl) {
+        logOperation('fullDeploy', jobId, true, 'waiting for GitHub Pages to propagate...');
+        verifiedPagesUrl = await waitForPagesLive(deployResult.pagesUrl);
+
+        if (!verifiedPagesUrl) {
+          // Pages not live yet - still mark as deployed but warn
+          logOperation('fullDeploy', jobId, false, 'GitHub Pages not live after timeout - check Pages settings');
+          console.log(`[GitHub] WARNING: GitHub Pages not responding at ${deployResult.pagesUrl}`);
+          console.log(`[GitHub] Ensure GitHub Pages is enabled:`);
+          console.log(`[GitHub]   1. Go to repo Settings → Pages`);
+          console.log(`[GitHub]   2. Set Source: "Deploy from a branch" → main → / (root)`);
+        }
+      }
+
+      // Step 6: Update job with deployment info and status
+      // Only set deployed_url if the page is actually live
+      const deployedUrl = verifiedPagesUrl || '';
       await jobService.updateJob(jobId, {
         status: JobStatus.DEPLOYED,
         deployed_url: deployedUrl
       });
 
-      logOperation('fullDeploy', jobId, true, `deployed to ${deployedUrl}`);
-
-      // Log a reminder about GitHub Pages
-      console.log(`[GitHub] NOTE: If you get a 404 at ${deployedUrl}, ensure GitHub Pages is enabled:`);
-      console.log(`[GitHub]   1. Go to repo Settings → Pages`);
-      console.log(`[GitHub]   2. Set Source: "Deploy from a branch" → main → / (root)`);
-      console.log(`[GitHub]   3. Wait 1-5 minutes for propagation`);
+      if (verifiedPagesUrl) {
+        logOperation('fullDeploy', jobId, true, `deployed and verified live at ${verifiedPagesUrl}`);
+      } else {
+        logOperation('fullDeploy', jobId, true, `deployed to GitHub but Pages URL not yet accessible`);
+      }
 
       return {
         success: true,
         repoUrl: deployResult.repoUrl,
-        pagesUrl: deployResult.pagesUrl,
+        pagesUrl: verifiedPagesUrl || undefined, // Only return if verified
         commitSha: deployResult.commitSha,
         collectionName: workflowResult.collectionName
       };
@@ -303,6 +318,6 @@ export const githubService = new GitHubService();
 export * from './types';
 
 // Re-export individual functions for direct use
-export { deployTool } from './deploy';
+export { deployTool, waitForPagesLive } from './deploy';
 export { triggerMongoSetup, generateCollectionName, getWorkflowRun } from './workflows';
 export { isGitHubConfigured, getGitHubConfig } from './client';
