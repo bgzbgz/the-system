@@ -227,10 +227,13 @@ SECTION 6: NAVIGATION
 - Back/Continue buttons
 
 SECTION 7: JAVASCRIPT
+- CRITICAL: Define API_BASE at the top of your script:
+  var API_BASE = 'https://the-system-production.up.railway.app';
+  var TOOL_SLUG = '{{tool-slug-here}}'; // Replace with actual slug
 - Slide navigation (horizontal translate)
 - Input validation
 - Result calculation (implement actual formula)
-- MongoDB save to API_BASE/api/tools/{slug}/responses
+- MongoDB save to API_BASE + '/api/tools/' + TOOL_SLUG + '/responses'
 - PDF export via window.print()
 - AI COACH REQUEST (018-tool-intelligence) - See below
 
