@@ -35,12 +35,13 @@ ${JSON.stringify(input.audienceProfile, null, 2)}
 
 Write all microcopy for this tool in Fast Track voice.`;
 
-    // Call Claude
+    // Call Claude Haiku for copy writing (cost optimized)
     const startTime = Date.now();
     const response = await aiService.callClaude({
       systemPrompt: prompt.systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 4096
+      maxTokens: 2048,
+      useHaiku: true
     });
     const duration = Date.now() - startTime;
 

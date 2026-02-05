@@ -249,7 +249,8 @@ Extract the key information needed to build a decision-making tool from this con
       const response = await this.aiService.completeWithFallback({
         systemPrompt: CONTENT_ANALYZER_PROMPT,
         userPrompt,
-        maxTokens: 4096
+        maxTokens: 4096,
+        useHaiku: true  // Cost optimized - analysis doesn't need Sonnet
       }, 'contentAnalyzer');
 
       // Parse JSON response

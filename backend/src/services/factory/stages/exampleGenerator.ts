@@ -35,12 +35,13 @@ ${JSON.stringify(input.audienceProfile, null, 2)}
 
 Generate test scenarios and inspiring case studies for this tool.`;
 
-    // Call Claude
+    // Call Claude Haiku for example generation (cost optimized)
     const startTime = Date.now();
     const response = await aiService.callClaude({
       systemPrompt: prompt.systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 8192
+      maxTokens: 2048,
+      useHaiku: true
     });
     const duration = Date.now() - startTime;
 

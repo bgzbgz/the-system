@@ -460,7 +460,8 @@ export class CourseProcessor {
       const response = await this.aiService.completeWithFallback({
         systemPrompt: contentSummarizerPrompt.systemPrompt,
         userPrompt: content,
-        maxTokens: MAX_TOKENS_SUMMARIZER
+        maxTokens: MAX_TOKENS_SUMMARIZER,
+        useHaiku: true  // Cost optimized - summarization doesn't need Sonnet
       }, 'courseProcessor');
 
       logger.info('[CourseProcessor] Summarization complete', {
@@ -490,7 +491,8 @@ export class CourseProcessor {
       const summary = await this.aiService.completeWithFallback({
         systemPrompt: `Extract ONLY the actionable content from this section. Preserve formulas, steps, criteria exactly. Remove fluff. Output under 1000 chars.`,
         userPrompt: section.substring(0, 15000), // Cap each chunk
-        maxTokens: 1024
+        maxTokens: 1024,
+        useHaiku: true  // Cost optimized
       }, 'courseProcessor');
 
       if (summary.content) {
@@ -509,7 +511,8 @@ export class CourseProcessor {
       const response = await this.aiService.completeWithFallback({
         systemPrompt: courseAnalystPrompt.systemPrompt,
         userPrompt: content,
-        maxTokens: MAX_TOKENS_ANALYST
+        maxTokens: MAX_TOKENS_ANALYST,
+        useHaiku: true  // Cost optimized - analysis doesn't need Sonnet
       }, 'courseProcessor');
 
       logger.info('[CourseProcessor] Analysis complete', {
@@ -550,7 +553,8 @@ Design a tool that helps students APPLY the knowledge from this course to their 
       const response = await this.aiService.completeWithFallback({
         systemPrompt: knowledgeArchitectPrompt.systemPrompt,
         userPrompt: userMessage,
-        maxTokens: MAX_TOKENS_ARCHITECT
+        maxTokens: MAX_TOKENS_ARCHITECT,
+        useHaiku: true  // Cost optimized - design doesn't need Sonnet
       }, 'courseProcessor');
 
       logger.info('[CourseProcessor] Design complete', {

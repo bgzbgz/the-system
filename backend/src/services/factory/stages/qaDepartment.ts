@@ -36,12 +36,13 @@ export const qaDepartmentStage: Stage<QAInput, QAOutput> = {
     // Build user message with HTML and spec for comparison
     const userMessage = `## Original Tool Specification\n\n${JSON.stringify(input.toolSpec, null, 2)}\n\n## Generated HTML Tool\n\n\`\`\`html\n${input.html}\n\`\`\`\n\nEvaluate this tool against all 8 quality criteria. Return your assessment as JSON.`;
 
-    // Call Claude for QA (more reliable JSON output than Gemini)
+    // Call Claude Haiku for QA evaluation (cost optimized)
     const startTime = Date.now();
     const response = await aiService.callClaude({
       systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 4096
+      maxTokens: 2048,
+      useHaiku: true
     });
     const duration = Date.now() - startTime;
 

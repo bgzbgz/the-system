@@ -37,12 +37,13 @@ export const feedbackApplierStage: Stage<FeedbackApplierInput, FeedbackApplierOu
 
     const userMessage = `## Original Tool Specification\n\n${JSON.stringify(input.toolSpec, null, 2)}\n\n## Current HTML Tool\n\n\`\`\`html\n${input.html}\n\`\`\`\n\n## Issues to Fix\n\n${feedbackList}\n\nApply minimal changes to fix these issues while preserving all working functionality. Return the complete revised HTML.`;
 
-    // Call Claude for revision (needs creative generation capability)
+    // Call Claude Haiku for revision (cost optimized, still capable of HTML edits)
     const startTime = Date.now();
     const response = await aiService.callClaude({
       systemPrompt,
       userPrompt: userMessage,
-      maxTokens: 16384 // Match Tool Builder for full HTML output
+      maxTokens: 8192,
+      useHaiku: true
     });
     const duration = Date.now() - startTime;
 
