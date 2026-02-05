@@ -437,7 +437,7 @@ function generateStageInsights(logs: FactoryLog[]): Array<{
     if (!summary) {
       // Generate a summary based on the response length and tokens
       const responseLen = latestLog.response?.length || 0;
-      const outputTokens = latestLog.tokens_output || 0;
+      const outputTokens = latestLog.output_tokens || 0;
       summary = `Processed with ${outputTokens.toLocaleString()} tokens, generated ${responseLen.toLocaleString()} characters.`;
     }
 

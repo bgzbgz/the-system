@@ -19,7 +19,7 @@ import {
   type ContentAnalysisResult,
   type AnalysisEdits,
 } from '../api/jobs.ts';
-import { extractTextFromFile, getFileTypeFromExtension } from '../utils/file-parser.ts';
+import { extractText } from '../utils/file-parser.ts';
 
 // ========== STATE ==========
 
@@ -244,9 +244,8 @@ async function handleFileUpload(file: File): Promise<void> {
 
     addToast('info', 'Extracting text from file...', 3000);
 
-    // Extract text
-    const fileType = getFileTypeFromExtension(extension);
-    const extractedText = await extractTextFromFile(file, fileType);
+    // Extract text (detectFileType is used internally by extractText)
+    const extractedText = await extractText(file);
 
     if (!extractedText || extractedText.length < 100) {
       state.error = 'Could not extract enough text from file. Please try a different file.';
@@ -557,7 +556,7 @@ function render(): void {
         </div>
 
         <div class="create-tool__progress">
-          <div class="progress-step ${state.step === 'template' ? 'progress-step--active' : (state.step !== 'template' ? 'progress-step--completed' : '')}">
+          <div class="progress-step ${state.step === 'template' ? 'progress-step--active' : 'progress-step--completed'}">
             <span class="progress-step__number">1</span>
             <span class="progress-step__label">SELECT TYPE</span>
           </div>
