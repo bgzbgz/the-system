@@ -116,6 +116,21 @@
   margin-bottom: var(--space-xl);
 }
 
+.wizard__header-actions {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.wizard__demo-btn {
+  background-color: var(--color-yellow);
+  color: var(--color-black);
+}
+
+.wizard__demo-btn:hover {
+  background-color: var(--color-black);
+  color: var(--color-yellow);
+}
+
 .wizard__title {
   font-family: var(--font-headline);
   font-size: 2rem;

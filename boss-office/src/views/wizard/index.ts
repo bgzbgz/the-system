@@ -5,12 +5,37 @@ import { navigate } from '../../utils/router.ts';
 import { renderWizardStepper, WIZARD_STEPS } from '../../components/wizard-stepper.ts';
 import { createJob } from '../../api/jobs.ts';
 import { showSuccess, showError, addToast } from '../../store/actions.ts';
-import type { WizardState } from '../../types/index.ts';
-import { renderStepIdentity } from './step-identity.ts';
+import type { WizardState, InputFieldDefinition } from '../../types/index.ts';
+import { renderStepIdentity, setReRenderCallback } from './step-identity.ts';
 import { renderStepFramework } from './step-framework.ts';
 import { renderStepInputs } from './step-inputs.ts';
 import { renderStepDecision } from './step-decision.ts';
 import { renderStepReview } from './step-review.ts';
+
+// Demo content for quick testing
+const DEMO_FILE_CONTENT = `
+# Pricing Strategy Framework
+
+## The Power of One Concept
+The Power of One is a framework for understanding how small changes in key business metrics can have outsized impacts on profitability.
+
+## Key Terminology
+- **Contribution Margin**: Revenue minus variable costs
+- **Break-even Point**: Where total revenue equals total costs
+- **Price Elasticity**: How demand changes with price changes
+
+## Expert Insights
+"A 1% improvement in price, assuming no loss of volume, increases operating profit by 11.1% on average." - McKinsey & Company
+
+## The 7 Levers of Business Growth
+1. Leads - Number of potential customers
+2. Conversion Rate - Percentage who become customers
+3. Average Transaction Value - How much each customer spends
+4. Purchase Frequency - How often customers buy
+5. Profit Margin - Percentage of revenue retained
+6. Customer Retention - How long customers stay
+7. Referrals - New customers from existing ones
+`;
 
 // Local wizard state (not stored globally to avoid pollution)
 let wizardState: WizardState = {
@@ -61,9 +86,19 @@ export function getWizardState(): WizardState {
 }
 
 /**
- * Update wizard state and re-render
+ * Update wizard state WITHOUT re-rendering (for input changes)
+ * Re-rendering on every keystroke destroys inputs and breaks typing
  */
 export function updateWizardState(updates: Partial<WizardState>): void {
+  wizardState = { ...wizardState, ...updates };
+  // Don't re-render - inputs handle their own state
+  // Only re-render on step changes via goToStep()
+}
+
+/**
+ * Update wizard state AND re-render (for file uploads, etc.)
+ */
+export function updateWizardStateAndRender(updates: Partial<WizardState>): void {
   wizardState = { ...wizardState, ...updates };
   if (currentContainer) {
     renderWizardView(currentContainer);
@@ -236,17 +271,92 @@ function formatInputsForBackend(): string {
 }
 
 /**
+ * Run demo - pre-fill wizard and submit immediately
+ */
+export async function runDemo(): Promise<void> {
+  addToast('info', 'Starting demo tool generation...', 3000);
+
+  // Create demo input fields
+  const demoInputFields: InputFieldDefinition[] = [
+    {
+      id: 'current-price',
+      label: 'Current Price',
+      type: 'currency',
+      hint: 'Your current product/service price',
+      required: true,
+      minValue: 0,
+      maxValue: 100000,
+    },
+    {
+      id: 'monthly-units',
+      label: 'Monthly Units Sold',
+      type: 'number',
+      hint: 'Average units sold per month',
+      required: true,
+      minValue: 1,
+      maxValue: 1000000,
+    },
+    {
+      id: 'variable-cost',
+      label: 'Variable Cost Per Unit',
+      type: 'currency',
+      hint: 'Cost to produce/deliver one unit',
+      required: true,
+      minValue: 0,
+      maxValue: 100000,
+    },
+    {
+      id: 'price-increase',
+      label: 'Proposed Price Increase',
+      type: 'percentage',
+      hint: 'Percentage increase you are considering',
+      required: true,
+      minValue: 1,
+      maxValue: 100,
+    },
+  ];
+
+  // Build demo job request directly (skip wizard state)
+  const jobRequest = {
+    fileName: 'demo-pricing-tool.md',
+    fileContent: DEMO_FILE_CONTENT,
+    questionnaire: {
+      category: 'B2B_PRODUCT' as const,
+      decision: 'Should I raise my prices by the proposed percentage?',
+      teachingPoint: 'This tool applies the Power of One framework to analyze pricing decisions. It calculates the impact of price changes on contribution margin and break-even point, helping users understand whether a price increase will improve profitability even if some volume is lost. The tool uses the 7 Levers methodology to show how pricing connects to overall business growth.',
+      inputs: demoInputFields.map(f => `${f.label} (${f.type}): ${f.hint}`).join('\n'),
+      verdictCriteria: 'GO if the price increase maintains positive contribution margin AND the break-even volume decrease is less than 20% of current volume. CONDITIONAL if break-even impact is between 20-40%. NO-GO if the price increase would require more than 40% volume increase to break even or results in negative contribution margin.',
+    },
+  };
+
+  try {
+    const job = await createJob(jobRequest);
+    showSuccess('Demo tool submitted! Redirecting to job view...');
+    navigate(`/job/${job._id}`);
+  } catch (error) {
+    console.error('Demo failed:', error);
+    showError(error instanceof Error ? error.message : 'Demo failed to create job');
+  }
+}
+
+/**
  * Render the wizard view
  */
 export function renderWizardView(container: HTMLElement): void {
   currentContainer = container;
+
+  // Set the re-render callback for step-identity file uploads
+  setReRenderCallback(updateWizardStateAndRender);
 
   container.innerHTML = `
     <div class="view view--wizard">
       <div class="wizard">
         <div class="wizard__header">
           <h1 class="wizard__title">CREATE NEW TOOL</h1>
-          <button type="button" class="btn btn--secondary wizard__cancel-btn">CANCEL</button>
+          <div class="wizard__header-actions">
+            <button type="button" class="btn btn--primary wizard__demo-btn">DEMO</button>
+            <button type="button" class="btn btn--secondary wizard__cancel-btn">CANCEL</button>
+          </div>
         </div>
 
         <div id="wizard-stepper" class="wizard__stepper"></div>
@@ -323,6 +433,14 @@ function renderCurrentStep(container: HTMLElement): void {
  * Attach wizard navigation listeners
  */
 function attachWizardListeners(container: HTMLElement): void {
+  // Demo button - skip wizard and create a demo tool
+  const demoBtn = container.querySelector<HTMLButtonElement>('.wizard__demo-btn');
+  demoBtn?.addEventListener('click', async () => {
+    demoBtn.disabled = true;
+    demoBtn.textContent = 'CREATING...';
+    await runDemo();
+  });
+
   // Cancel button
   const cancelBtn = container.querySelector<HTMLButtonElement>('.wizard__cancel-btn');
   cancelBtn?.addEventListener('click', () => {

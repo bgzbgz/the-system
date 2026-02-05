@@ -5,6 +5,13 @@ import type { WizardState, Category, FileUpload } from '../../types/index.ts';
 import { SPRINTS } from '../../types/index.ts';
 import { extractText } from '../../utils/file-parser.ts';
 
+// Re-render callback - set by parent wizard
+let reRenderCallback: ((updates: Partial<WizardState>) => void) | null = null;
+
+export function setReRenderCallback(cb: (updates: Partial<WizardState>) => void): void {
+  reRenderCallback = cb;
+}
+
 // Category options
 const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
   { value: 'B2B_PRODUCT', label: 'B2B Product' },
@@ -211,29 +218,37 @@ function attachStepIdentityListeners(
       }
     });
 
-    // Remove file button
+    // Remove file button - needs to re-render to show upload zone
     const removeBtn = container.querySelector<HTMLButtonElement>('.file-status__remove');
     removeBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
-      updateState({ fileUpload: null, errors: {} });
+      if (reRenderCallback) {
+        reRenderCallback({ fileUpload: null, errors: {} });
+      }
     });
   }
 }
 
 /**
- * Handle file upload
+ * Handle file upload - uses reRenderCallback to show progress
  */
 async function handleFileUpload(
   file: File,
-  updateState: (updates: Partial<WizardState>) => void
+  _updateState: (updates: Partial<WizardState>) => void
 ): Promise<void> {
   // Validate file type
   const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown', 'text/plain'];
   const validExtensions = ['.pdf', '.docx', '.md', '.txt'];
   const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
 
+  const updateAndRender = (updates: Partial<WizardState>) => {
+    if (reRenderCallback) {
+      reRenderCallback(updates);
+    }
+  };
+
   if (!validTypes.includes(file.type) && !validExtensions.includes(fileExt)) {
-    updateState({
+    updateAndRender({
       fileUpload: {
         file,
         name: file.name,
@@ -250,7 +265,7 @@ async function handleFileUpload(
 
   // Set extracting status
   const fileType = fileExt.replace('.', '') as 'pdf' | 'docx' | 'md' | 'txt';
-  updateState({
+  updateAndRender({
     fileUpload: {
       file,
       name: file.name,
@@ -265,7 +280,7 @@ async function handleFileUpload(
 
   try {
     const extractedText = await extractText(file);
-    updateState({
+    updateAndRender({
       fileUpload: {
         file,
         name: file.name,
@@ -278,7 +293,7 @@ async function handleFileUpload(
       errors: {},
     });
   } catch (error) {
-    updateState({
+    updateAndRender({
       fileUpload: {
         file,
         name: file.name,
