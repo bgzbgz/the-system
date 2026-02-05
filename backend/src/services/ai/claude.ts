@@ -15,7 +15,7 @@ import logger from '../../utils/logger';
 
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 const DEFAULT_MAX_TOKENS = 4096;
-const DEFAULT_TIMEOUT_MS = 120000; // 2 minutes timeout for API calls
+const DEFAULT_TIMEOUT_MS = 300000; // 5 minutes timeout for API calls (increased for large HTML generation)
 
 // ========== CLAUDE PROVIDER ==========
 
