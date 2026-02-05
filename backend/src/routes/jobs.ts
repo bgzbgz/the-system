@@ -278,12 +278,78 @@ router.post('/:jobId/retry', async (req: Request, res: Response) => {
         workflow_error: undefined
       });
 
-      // Fire-and-forget factory processing
+      // Fire-and-forget factory processing with result handling
       toolFactory.processRequest({
         jobId,
         userRequest
-      }).catch(err => {
+      }).then(async (result) => {
+        logger.logOperation({
+          operation: 'FACTORY_RETRY_COMPLETED',
+          job_id: jobId,
+          status: result.success ? 'success' : 'failed',
+          actor: 'FACTORY',
+          details: {
+            status: result.status,
+            revisionCount: result.revisionCount
+          }
+        });
+
+        // Helper to convert QACriteria object to array of findings
+        const criteriaToFindings = (criteria: Record<string, { passed: boolean; feedback: string }> | undefined) => {
+          if (!criteria) return undefined;
+          return Object.entries(criteria).map(([name, c]) => ({
+            check: name,
+            passed: c.passed,
+            message: c.feedback
+          }));
+        };
+
+        // Save the generated HTML and update status based on result
+        if (result.success && result.toolHtml) {
+          // Save HTML to artifacts table
+          await jobArtifactService.saveToolHtml(jobId, result.toolHtml);
+
+          // Update job metadata (without tool_html)
+          await jobService.updateJob(jobId, {
+            status: JobStatus.READY_FOR_REVIEW,
+            tool_name: result.toolSpec?.name || job.tool_name,
+            qa_report: result.qaResult ? {
+              passed: result.qaResult.passed,
+              score: result.qaResult.score,
+              max_score: 8,
+              findings: criteriaToFindings(result.qaResult.criteria as unknown as Record<string, { passed: boolean; feedback: string }>)
+            } : undefined
+          });
+          logger.logOperation({
+            operation: 'STATUS_UPDATED',
+            job_id: jobId,
+            status: JobStatus.READY_FOR_REVIEW,
+            actor: 'FACTORY'
+          });
+        } else if (!result.success) {
+          // Mark as QA failed - but still save the tool_html so users can preview it
+          if (result.toolHtml) {
+            await jobArtifactService.saveToolHtml(jobId, result.toolHtml);
+          }
+
+          await jobService.updateJob(jobId, {
+            status: JobStatus.QA_FAILED,
+            tool_name: result.toolSpec?.name || job.tool_name,
+            qa_report: result.qaResult ? {
+              passed: result.qaResult.passed,
+              score: result.qaResult.score,
+              max_score: 8,
+              findings: criteriaToFindings(result.qaResult.criteria as unknown as Record<string, { passed: boolean; feedback: string }>)
+            } : undefined,
+            workflow_error: result.error?.message || 'Factory processing failed'
+          });
+        }
+      }).catch(async (err) => {
         logger.logError('Factory retry failed', err as Error, { job_id: jobId });
+        await jobService.updateJob(jobId, {
+          status: JobStatus.QA_FAILED,
+          workflow_error: (err as Error).message
+        });
       });
 
       logger.logOperation({
