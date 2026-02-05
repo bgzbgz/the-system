@@ -13,11 +13,18 @@ export interface RouteMatch {
   params: Record<string, string>;
 }
 
-// Define application routes
+// Define application routes (REDESIGNED)
 const routes: Route[] = [
-  { path: '/', pattern: /^\/$/,params: [] },
+  // New routes
+  { path: '/', pattern: /^\/$/, params: [] },                              // Dashboard
+  { path: '/create', pattern: /^\/create$/, params: [] },                  // Wizard
+  { path: '/inbox', pattern: /^\/inbox$/, params: [] },                    // Job Queue
+  { path: '/job/:jobId', pattern: /^\/job\/([^/]+)$/, params: ['jobId'] }, // Job Detail
+  { path: '/job/:jobId/logs', pattern: /^\/job\/([^/]+)\/logs$/, params: ['jobId'] }, // AI Logs
+  { path: '/metrics', pattern: /^\/metrics$/, params: [] },                // Quality Dashboard
+
+  // Legacy routes (kept for compatibility, redirect in app.ts)
   { path: '/submit', pattern: /^\/submit$/, params: [] },
-  { path: '/inbox', pattern: /^\/inbox$/, params: [] },
   { path: '/preview/:jobId', pattern: /^\/preview\/([^/]+)$/, params: ['jobId'] },
   { path: '/audit', pattern: /^\/audit$/, params: [] },
   { path: '/audit/:jobId', pattern: /^\/audit\/([^/]+)$/, params: ['jobId'] },
@@ -46,7 +53,7 @@ export function parseHash(): RouteMatch {
     }
   }
 
-  // Default to home if no match
+  // Default to dashboard if no match
   return { route: '/', params: {} };
 }
 
@@ -80,14 +87,22 @@ export function getCurrentRoute(): RouteMatch {
   return parseHash();
 }
 
-// Route helpers
+// Route helpers (REDESIGNED)
 export const routes_paths = {
-  home: () => '/',
-  submit: () => '/submit',
+  // New primary routes
+  dashboard: () => '/',
+  create: () => '/create',
   inbox: () => '/inbox',
-  preview: (jobId: string) => `/preview/${jobId}`,
-  audit: () => '/audit',
-  auditJob: (jobId: string) => `/audit/${jobId}`,
-  logs: (jobId: string) => `/logs/${jobId}`,
+  job: (jobId: string) => `/job/${jobId}`,
+  jobLogs: (jobId: string) => `/job/${jobId}/logs`,
+  metrics: () => '/metrics',
+
+  // Legacy (kept for compatibility)
+  home: () => '/',
+  submit: () => '/create', // Redirect to new wizard
+  preview: (jobId: string) => `/job/${jobId}`,
+  audit: () => '/inbox',
+  auditJob: (jobId: string) => `/job/${jobId}`,
+  logs: (jobId: string) => `/job/${jobId}/logs`,
   principles: () => '/principles',
 };

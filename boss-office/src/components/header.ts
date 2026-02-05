@@ -5,28 +5,28 @@ export function renderHeader(container: HTMLElement): void {
   const { currentRoute } = store.getState();
 
   // Determine active link
-  const isSubmitActive = currentRoute === '/' || currentRoute === '/submit';
-  const isInboxActive = currentRoute === '/inbox' || currentRoute.startsWith('/preview');
-  const isAuditActive = currentRoute.startsWith('/audit');
-  const isPrinciplesActive = currentRoute.startsWith('/principles');
+  const isDashboardActive = currentRoute === '/';
+  const isCreateActive = currentRoute === '/create' || currentRoute === '/submit';
+  const isInboxActive = currentRoute === '/inbox' || currentRoute.startsWith('/job') || currentRoute.startsWith('/preview');
+  const isMetricsActive = currentRoute === '/metrics';
 
   container.innerHTML = `
     <div class="header">
       <a href="#/" class="header__logo">
-        <span class="header__logo-text">BOSS OFFICE</span>
+        <span class="header__logo-text">TOOL FACTORY</span>
       </a>
       <nav class="header__nav">
-        <a href="#/submit" class="header__link ${isSubmitActive ? 'header__link--active' : ''}">
-          SUBMIT
+        <a href="#/" class="header__link ${isDashboardActive ? 'header__link--active' : ''}">
+          DASHBOARD
+        </a>
+        <a href="#/create" class="header__link ${isCreateActive ? 'header__link--active' : ''}">
+          CREATE
         </a>
         <a href="#/inbox" class="header__link ${isInboxActive ? 'header__link--active' : ''}">
           INBOX
         </a>
-        <a href="#/audit" class="header__link ${isAuditActive ? 'header__link--active' : ''}">
-          AUDIT
-        </a>
-        <a href="#/principles" class="header__link ${isPrinciplesActive ? 'header__link--active' : ''}">
-          PRINCIPLES
+        <a href="#/metrics" class="header__link ${isMetricsActive ? 'header__link--active' : ''}">
+          METRICS
         </a>
       </nav>
     </div>

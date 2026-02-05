@@ -1,13 +1,18 @@
 import { store } from './store/actions.ts';
 import { renderHeader } from './components/header.ts';
 import { renderToastContainer } from './components/toast.ts';
-import { renderSubmissionView } from './views/submission.ts';
-import { renderInboxView } from './views/inbox.ts';
-import { renderPreviewView } from './views/preview.ts';
-import { renderAuditView } from './views/audit.ts';
-import { renderLogsView } from './views/logs/index.ts';
+import { parseHash, navigate } from './utils/router.ts';
+
+// Views
+import { renderDashboardView } from './views/dashboard.ts';
+import { renderWizardView } from './views/wizard/index.ts';
+import { renderInboxView, cleanupInboxView } from './views/inbox.ts';
+import { renderJobDetailView, stopPolling as stopJobPolling } from './views/job-detail.ts';
+import { renderAILogsView } from './views/ai-logs.ts';
+import { renderMetricsView } from './views/metrics.ts';
+
+// Legacy views (kept for compatibility)
 import { renderPrinciplesView } from './views/principles.ts';
-import { parseHash } from './utils/router.ts';
 
 // App container reference
 let contentContainer: HTMLElement | null = null;
@@ -54,9 +59,18 @@ export function mountApp(container: HTMLElement): void {
   renderCurrentView();
 }
 
+// Cleanup function for view transitions
+function cleanupCurrentView(): void {
+  cleanupInboxView();
+  stopJobPolling();
+}
+
 // Render the current view based on route
 function renderCurrentView(): void {
   if (!contentContainer) return;
+
+  // Cleanup previous view
+  cleanupCurrentView();
 
   const match = parseHash();
   const { route, params } = match;
@@ -66,44 +80,71 @@ function renderCurrentView(): void {
 
   // Render appropriate view
   switch (route) {
+    // New primary routes
     case '/':
-    case '/submit':
-      renderSubmissionView(contentContainer);
+      renderDashboardView(contentContainer);
+      break;
+
+    case '/create':
+      renderWizardView(contentContainer);
       break;
 
     case '/inbox':
       renderInboxView(contentContainer);
       break;
 
+    case '/job/:jobId':
+      renderJobDetailView(contentContainer, params.jobId);
+      break;
+
+    case '/job/:jobId/logs':
+      renderAILogsView(contentContainer, params.jobId);
+      break;
+
+    case '/metrics':
+      renderMetricsView(contentContainer);
+      break;
+
+    // Legacy routes (redirects and compatibility)
+    case '/submit':
+      // Redirect to new wizard
+      navigate('/create');
+      break;
+
     case '/preview/:jobId':
-      renderPreviewView(contentContainer, params.jobId);
+      // Redirect to new job detail
+      navigate(`/job/${params.jobId}`);
       break;
 
     case '/audit':
-      renderAuditView(contentContainer);
+      // Redirect to inbox
+      navigate('/inbox');
       break;
 
     case '/audit/:jobId':
-      renderAuditView(contentContainer, params.jobId);
+      // Redirect to job detail
+      navigate(`/job/${params.jobId}`);
       break;
 
     case '/logs/:jobId':
-      renderLogsView(contentContainer, params.jobId);
+      // Redirect to new AI logs view
+      navigate(`/job/${params.jobId}/logs`);
       break;
 
     case '/principles':
+      // Keep legacy principles view
       renderPrinciplesView(contentContainer);
       break;
 
     default:
-      // 404 - redirect to submit
+      // 404 - redirect to dashboard
       contentContainer.innerHTML = `
         <div class="view">
           <div class="empty-state">
             <div class="empty-state__icon">?</div>
             <h2 class="empty-state__title">PAGE NOT FOUND</h2>
             <p class="empty-state__message">The page you're looking for doesn't exist.</p>
-            <a href="#/submit" class="btn btn--primary">GO TO SUBMIT</a>
+            <a href="#/" class="btn btn--primary">GO TO DASHBOARD</a>
           </div>
         </div>
       `;

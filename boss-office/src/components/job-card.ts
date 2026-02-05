@@ -23,6 +23,10 @@ const STATUS_CONFIG: Record<
   DEPLOYED: { icon: '&#127881;', label: 'DEPLOYED', badgeClass: 'badge--success' },
   DEPLOY_FAILED: { icon: '&#9888;', label: 'DEPLOY FAILED', badgeClass: 'badge--error' },
   REJECTED: { icon: '&#10006;', label: 'REJECTED', badgeClass: 'badge--error' },
+  ESCALATED: { icon: '&#9888;', label: 'ESCALATED', badgeClass: 'badge--error' },
+  FACTORY_FAILED: { icon: '&#9888;', label: 'FACTORY FAILED', badgeClass: 'badge--error' },
+  FAILED_SEND: { icon: '&#9888;', label: 'FAILED TO SEND', badgeClass: 'badge--error' },
+  DEPLOY_REQUESTED: { icon: '&#128640;', label: 'DEPLOY QUEUED', badgeClass: 'badge--processing' },
 };
 
 // Category labels

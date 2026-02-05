@@ -212,12 +212,9 @@ async function handleReject(container: HTMLElement): Promise<void> {
       }
 
       try {
-        const job = await rejectJob(currentJob._id);
+        await rejectJob(currentJob._id);
 
-        // Update job in state
-        setCurrentJob(job);
-        updateJobInList(job);
-
+        // Navigate away - job is rejected, no need to update state
         showSuccess('Tool rejected');
         navigate('/inbox');
       } catch (error) {

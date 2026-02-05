@@ -2,6 +2,7 @@
 import './styles/base.css';
 import './styles/components.css';
 import './styles/views.css';
+import './styles/redesign.css';
 
 // Import app modules
 import { initRouter } from './utils/router.ts';

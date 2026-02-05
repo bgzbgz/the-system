@@ -272,9 +272,17 @@ export async function requestRevision(jobId: string, notes: string): Promise<Job
   };
 }
 
+// Reject response shape from backend
+interface RejectResponse {
+  success: boolean;
+  job_id: string;
+  status: string;
+  message: string;
+}
+
 // Reject job permanently
-export async function rejectJob(jobId: string, reason: string = 'Rejected by boss'): Promise<Job> {
-  const response = await api.post<Job>(`/jobs/${jobId}/reject`, { reason });
+export async function rejectJob(jobId: string, reason: string = 'Rejected by boss'): Promise<RejectResponse> {
+  const response = await api.post<RejectResponse>(`/jobs/${jobId}/reject`, { reason });
   return response;
 }
 

@@ -19,6 +19,17 @@ interface BackendLogsResponse {
  * @param jobId - The job ID to fetch logs for
  * @returns Promise with logs response
  */
+export async function getLogs(jobId: string, stage?: string): Promise<{ logs: FactoryLog[]; count: number }> {
+  const endpoint = stage ? `/jobs/${jobId}/logs?stage=${stage}` : `/jobs/${jobId}/logs`;
+  const response = await api.get<BackendLogsResponse>(endpoint);
+
+  if (response.data && response.data.logs) {
+    return response.data;
+  }
+
+  return { logs: [], count: 0 };
+}
+
 export async function fetchLogs(jobId: string): Promise<LogsApiResponse> {
   try {
     const response = await api.get<BackendLogsResponse>(`/jobs/${jobId}/logs`);
