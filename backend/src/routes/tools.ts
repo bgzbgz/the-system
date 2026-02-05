@@ -21,7 +21,6 @@ import {
   generateInputFeedback,
   CourseContext
 } from '../services/toolIntelligence';
-import { getDB, isConnected } from '../db/connection';
 import { DeployedTool } from '../db/models/deployedTool';
 
 // Feature 021: Unified tool collection service (replaces deprecated toolResponses for save/get/stats)
@@ -30,6 +29,9 @@ import { ToolDefaults, CreateResponseInput } from '../db/models/toolCollection';
 
 // Supabase tool response service (for saving responses to Supabase)
 import * as toolResponseService from '../db/supabase/services/toolResponseService';
+
+// Supabase tool default service (for getting tool configs)
+import * as toolDefaultService from '../db/supabase/services/toolDefaultService';
 
 const router = Router();
 
@@ -167,15 +169,6 @@ router.get(
     const { slug } = req.params;
 
     try {
-      // Check database availability
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable',
-          code: 'DATABASE_UNAVAILABLE'
-        });
-      }
-
       // Parse query parameters - page-based pagination
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
@@ -252,15 +245,6 @@ router.get(
     const { slug } = req.params;
 
     try {
-      // Check database availability
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable',
-          code: 'DATABASE_UNAVAILABLE'
-        });
-      }
-
       // Feature 021: Get statistics from unified collection
       const stats = await toolCollectionService.getStats(slug);
 
@@ -309,32 +293,30 @@ async function getToolDefaults(slug: string): Promise<ToolDefaults | null> {
 }
 
 /**
- * @deprecated Use getToolDefaults instead (Feature 021)
- * Kept for backward compatibility - returns data in DeployedTool shape
+ * Get tool configuration from Supabase
+ * Returns data in DeployedTool shape for backward compatibility with Tool Intelligence
  */
 async function getDeployedToolBySlug(slug: string): Promise<DeployedTool | null> {
   try {
-    // First try the unified collection (Feature 021)
-    const defaults = await toolCollectionService.getDefaults(slug);
+    // Get from Supabase tool_defaults table
+    const defaults = await toolDefaultService.getToolDefault(slug);
     if (defaults) {
-      // Map ToolDefaults to DeployedTool shape for backward compatibility
+      // Map to DeployedTool shape for backward compatibility
       return {
-        tool_id: defaults.tool_id,
+        tool_id: defaults.id,
         tool_slug: defaults.tool_slug,
         tool_name: defaults.tool_name,
         github_url: defaults.github_url,
-        deployed_at: defaults.created_at,
-        response_count: 0, // Will be calculated separately if needed
-        courseContext: defaults.courseContext,
-        qualityGate: defaults.qualityGate
+        deployed_at: defaults.deployed_at || defaults.created_at,
+        response_count: 0,
+        courseContext: defaults.course_context as any,
+        qualityGate: defaults.quality_gate as any
       } as unknown as DeployedTool;
     }
 
-    // Fallback to legacy deployed_tools collection (for tools deployed before Feature 021)
-    const db = getDB();
-    return await db.collection<DeployedTool>('deployed_tools').findOne({ tool_slug: slug });
+    return null;
   } catch (error) {
-    logger.logError('Error getting deployed tool', error as Error, { slug });
+    logger.logError('Error getting deployed tool from Supabase', error as Error, { slug });
     return null;
   }
 }
@@ -371,15 +353,6 @@ router.post(
     const { slug } = req.params;
 
     try {
-      // Check database availability
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          status: 'unavailable',
-          message: 'Service temporarily unavailable'
-        });
-      }
-
       // Validate required fields
       const { responseId, inputs, verdict, score, userId } = req.body;
 
@@ -475,13 +448,6 @@ router.get(
     const { responseId } = req.params;
 
     try {
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable'
-        });
-      }
-
       const analysis = await getAnalysisByResponseId(responseId);
 
       if (!analysis) {
@@ -528,13 +494,6 @@ router.post(
     const { slug } = req.params;
 
     try {
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable'
-        });
-      }
-
       const { fieldId, value } = req.body;
 
       if (!fieldId || value === undefined) {
@@ -587,13 +546,6 @@ router.get(
     const { slug } = req.params;
 
     try {
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable'
-        });
-      }
-
       const tool = await getDeployedToolBySlug(slug);
       if (!tool) {
         return res.status(404).json({
@@ -638,13 +590,6 @@ router.get(
     const { slug } = req.params;
 
     try {
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable'
-        });
-      }
-
       const tool = await getDeployedToolBySlug(slug);
       if (!tool) {
         return res.status(404).json({
@@ -693,51 +638,19 @@ router.get(
     const { slug } = req.params;
 
     try {
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable'
-        });
-      }
-
-      const db = getDB();
       const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
       const skip = parseInt(req.query.skip as string) || 0;
 
-      // Get analyses for this tool
-      const analyses = await db
-        .collection('tool_analyses')
-        .find({ toolSlug: slug })
-        .sort({ generatedAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .toArray();
-
-      const total = await db
-        .collection('tool_analyses')
-        .countDocuments({ toolSlug: slug });
-
+      // TODO: Implement Supabase-based tool_analyses table if needed
+      // For now, return empty results since user uses Supabase not MongoDB
       return res.status(200).json({
         success: true,
-        data: analyses.map(a => ({
-          id: a._id?.toString(),
-          responseId: a.responseId?.toString(),
-          userId: a.userId,
-          insights: a.insights,
-          recommendations: a.recommendations,
-          verdictExplanation: a.verdictExplanation,
-          qualityScore: a.qualityScore,
-          courseReferences: a.courseReferences,
-          status: a.status,
-          generatedAt: a.generatedAt,
-          generationDurationMs: a.generationDurationMs,
-          tokenUsage: a.tokenUsage
-        })),
+        data: [],
         pagination: {
-          total,
+          total: 0,
           limit,
           skip,
-          hasMore: skip + analyses.length < total
+          hasMore: false
         }
       });
 
@@ -766,13 +679,6 @@ router.put(
     const { slug } = req.params;
 
     try {
-      if (!isConnected()) {
-        return res.status(503).json({
-          success: false,
-          error: 'Service temporarily unavailable'
-        });
-      }
-
       const { enabled, minimumScore } = req.body;
 
       if (typeof enabled !== 'boolean' || typeof minimumScore !== 'number') {
@@ -792,29 +698,34 @@ router.put(
       }
 
       // Feature 021: Update quality gate in unified collection
-      const updated = await toolCollectionService.updateDefaults(slug, {
-        qualityGate: { enabled, minimumScore }
-      });
+      let updated = false;
+      try {
+        const result = await toolCollectionService.updateDefaults(slug, {
+          qualityGate: { enabled, minimumScore }
+        });
+        updated = !!result;
+      } catch {
+        // MongoDB not connected, try Supabase
+      }
 
       if (!updated) {
-        // Fallback to legacy deployed_tools collection for backward compatibility
-        const db = getDB();
-        const result = await db.collection<DeployedTool>('deployed_tools').updateOne(
-          { tool_slug: slug },
-          {
-            $set: {
-              qualityGate: { enabled, minimumScore }
-            }
-          }
-        );
-
-        if (result.matchedCount === 0) {
-          return res.status(404).json({
-            success: false,
-            error: 'Tool not found',
-            code: 'TOOL_NOT_FOUND'
+        // Also try updating in Supabase tool_defaults
+        try {
+          await toolDefaultService.updateToolDefault(slug, {
+            quality_gate: { enabled, minimumScore }
           });
+          updated = true;
+        } catch {
+          // Tool not found in Supabase either
         }
+      }
+
+      if (!updated) {
+        return res.status(404).json({
+          success: false,
+          error: 'Tool not found',
+          code: 'TOOL_NOT_FOUND'
+        });
       }
 
       return res.status(200).json({
