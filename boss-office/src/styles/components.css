@@ -522,3 +522,53 @@
     background-position: -200% 0;
   }
 }
+
+/* Live Logs during processing */
+.live-logs {
+  background: var(--color-black);
+  color: var(--color-white);
+  padding: var(--space-md);
+  max-height: 400px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.live-logs__waiting {
+  color: var(--color-grey);
+  font-style: italic;
+  margin: 0;
+}
+
+.live-log-entry {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid #333;
+}
+
+.live-log-entry:last-child {
+  border-bottom: none;
+}
+
+.live-log-entry__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xs);
+}
+
+.live-log-entry__stage {
+  color: var(--color-yellow);
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.live-log-entry__meta {
+  color: var(--color-grey);
+  font-size: 0.625rem;
+}
+
+.live-log-entry__summary {
+  color: var(--color-white);
+  margin: 0;
+  line-height: 1.4;
+}

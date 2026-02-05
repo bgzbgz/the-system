@@ -3,9 +3,11 @@
 
 import { setCurrentJob, setCurrentJobLoading, showSuccess, showError, updateJobInList } from '../store/actions.ts';
 import { getJob, approveJob, requestRevision, rejectJob, cancelJob } from '../api/jobs.ts';
+import { getLogs } from '../api/logs.ts';
 import { navigate } from '../utils/router.ts';
-import { renderPipelineVisualizer, mapJobStatusToPipeline, calculateProgress } from '../components/pipeline-visualizer.ts';
+import { renderPipelineVisualizer, mapJobStatusToPipeline, calculateProgress, type PipelineStage } from '../components/pipeline-visualizer.ts';
 import type { Job, JobStatus } from '../types/index.ts';
+import type { FactoryLog } from '../types/logs.ts';
 
 // Polling state
 let pollInterval: number | null = null;
@@ -203,6 +205,17 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
             <button class="btn btn--danger btn--small job-detail__cancel-btn" style="margin-left: 16px;">
               CANCEL
             </button>
+          </div>
+
+          <!-- Live Logs Section (shown during processing) -->
+          <div class="job-detail__section job-detail__section--live-logs">
+            <div class="job-detail__section-header">
+              <h2 class="job-detail__section-title">LIVE FACTORY OUTPUT</h2>
+              <span id="log-count-badge" class="badge badge--processing">0 stages</span>
+            </div>
+            <div id="live-logs-container" class="live-logs">
+              <p class="live-logs__waiting">Waiting for factory to start...</p>
+            </div>
           </div>
         ` : ''}
 
@@ -444,10 +457,20 @@ function startPolling(jobId: string, currentStatus: JobStatus): void {
   const shouldPollFast = ['PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(currentStatus);
   const interval = shouldPollFast ? POLL_INTERVAL_ACTIVE : POLL_INTERVAL_IDLE;
 
+  // Immediately poll logs if processing
+  if (shouldPollFast) {
+    pollLogs(jobId);
+  }
+
   pollInterval = window.setInterval(async () => {
     try {
       const job = await getJob(jobId);
       setCurrentJob(job);
+
+      // Poll logs during processing
+      if (['PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(job.status)) {
+        await pollLogs(jobId);
+      }
 
       // If status changed, re-render
       if (job.status !== currentStatus && currentContainer) {
@@ -459,6 +482,105 @@ function startPolling(jobId: string, currentStatus: JobStatus): void {
       console.error('Polling error:', error);
     }
   }, interval);
+}
+
+/**
+ * Poll and display live logs
+ */
+async function pollLogs(jobId: string): Promise<void> {
+  try {
+    const { logs, count } = await getLogs(jobId);
+
+    // Update log count badge
+    const badge = document.getElementById('log-count-badge');
+    if (badge) {
+      badge.textContent = `${count} stages`;
+    }
+
+    // Update live logs container
+    const container = document.getElementById('live-logs-container');
+    if (!container) return;
+
+    if (logs.length === 0) {
+      container.innerHTML = '<p class="live-logs__waiting">Waiting for factory to start...</p>';
+      return;
+    }
+
+    // Group logs by stage and show latest from each
+    const stageNames: Record<string, string> = {
+      'secretary': 'Secretary',
+      'audience-profile': 'Audience Profiler',
+      'example-gen': 'Example Generator',
+      'copy-write': 'Copy Writer',
+      'template-select': 'Template Decider',
+      'tool-build': 'Tool Builder',
+      'brand-audit': 'Brand Guardian',
+      'qa-eval': 'QA Department',
+      'feedback-apply': 'Feedback Applier'
+    };
+
+    // Update pipeline visualizer based on completed stages
+    updatePipelineFromLogs(logs);
+
+    // Render logs summary
+    const logsHtml = logs.map(log => `
+      <div class="live-log-entry">
+        <div class="live-log-entry__header">
+          <span class="live-log-entry__stage">${stageNames[log.stage] || log.stage}</span>
+          <span class="live-log-entry__meta">
+            ${log.model} • ${log.input_tokens?.toLocaleString() || 0}→${log.output_tokens?.toLocaleString() || 0} tokens
+            ${log.duration_ms ? `• ${(log.duration_ms / 1000).toFixed(1)}s` : ''}
+          </span>
+        </div>
+        <p class="live-log-entry__summary">${escapeHtml(log.summary || 'Completed')}</p>
+      </div>
+    `).join('');
+
+    container.innerHTML = logsHtml;
+
+  } catch (error) {
+    console.error('Log polling error:', error);
+  }
+}
+
+/**
+ * Update pipeline visualizer based on completed logs
+ */
+function updatePipelineFromLogs(logs: FactoryLog[]): void {
+  const stageMap: Record<string, string> = {
+    'secretary': 'sec',
+    'audience-profile': 'aud',
+    'example-gen': 'exm',
+    'copy-write': 'cpy',
+    'template-select': 'tpl',
+    'tool-build': 'bld',
+    'brand-audit': 'brd',
+    'qa-eval': 'qa'
+  };
+
+  const completedStageIds = logs.map(log => stageMap[log.stage]).filter(Boolean);
+
+  // Update stage indicators
+  completedStageIds.forEach(stageId => {
+    const stageEl = document.querySelector(`[data-stage-id="${stageId}"]`);
+    if (stageEl) {
+      stageEl.classList.remove('pipeline-stage--pending', 'pipeline-stage--active');
+      stageEl.classList.add('pipeline-stage--completed');
+    }
+  });
+
+  // Find the next incomplete stage and mark it active
+  const allStages = ['sec', 'aud', 'exm', 'cpy', 'bld', 'brd', 'qa', 'rev'];
+  for (const stageId of allStages) {
+    if (!completedStageIds.includes(stageId)) {
+      const stageEl = document.querySelector(`[data-stage-id="${stageId}"]`);
+      if (stageEl && !stageEl.classList.contains('pipeline-stage--failed')) {
+        stageEl.classList.remove('pipeline-stage--pending');
+        stageEl.classList.add('pipeline-stage--active');
+      }
+      break;
+    }
+  }
 }
 
 /**
