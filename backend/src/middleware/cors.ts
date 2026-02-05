@@ -22,6 +22,9 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5176', // Vite fallback port
   'http://localhost:5177', // Vite fallback port
   'http://localhost:5178', // Vite fallback port
+  'http://localhost:5179', // Vite fallback port
+  'http://localhost:5180', // Vite fallback port
+  'http://localhost:5181', // Vite fallback port
   'http://localhost:8000',
   'http://localhost:8080',
   // GitHub Pages - deployed tools
