@@ -8,7 +8,6 @@ import { getLiveLogs, getActiveJobs, getFactoryStats, LiveLogEntry, ActiveJob, F
 // ========== STATE ==========
 
 let pollInterval: number | null = null;
-let lastLogId: string | null = null;
 const POLL_INTERVAL = 2000; // 2 seconds
 
 // Pipeline stages for the conveyor belt

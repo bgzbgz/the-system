@@ -3,7 +3,7 @@
  * For the Factory Floor real-time view
  */
 
-import { apiRequest } from './client.ts';
+import { api } from './client.ts';
 
 // ========== TYPES ==========
 
@@ -58,19 +58,19 @@ export async function getLiveLogs(options?: {
   const query = params.toString();
   const url = query ? `/live/logs?${query}` : '/live/logs';
 
-  return apiRequest<{ logs: LiveLogEntry[]; count: number }>(url);
+  return api.get<{ logs: LiveLogEntry[]; count: number }>(url);
 }
 
 /**
  * Get active jobs for conveyor belt
  */
 export async function getActiveJobs(): Promise<{ jobs: ActiveJob[]; count: number }> {
-  return apiRequest<{ jobs: ActiveJob[]; count: number }>('/live/active-jobs');
+  return api.get<{ jobs: ActiveJob[]; count: number }>('/live/active-jobs');
 }
 
 /**
  * Get factory statistics
  */
 export async function getFactoryStats(): Promise<{ stats: FactoryStats }> {
-  return apiRequest<{ stats: FactoryStats }>('/live/stats');
+  return api.get<{ stats: FactoryStats }>('/live/stats');
 }
