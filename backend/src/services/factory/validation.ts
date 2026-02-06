@@ -26,8 +26,9 @@ import { Phase, MIN_PHASES, MAX_PHASES, MAX_INPUTS_PER_PHASE } from '../../promp
  * Validate course analysis extraction
  *
  * Rules:
- * - MUST have either numberedFramework OR keyTerminology (at least one)
- * - If numberedFramework exists, MUST have at least 1 item
+ * - MUST have either numberedFramework OR keyTerminology OR legacy framework.steps (at least one)
+ * - If numberedFramework exists with items, use those
+ * - If numberedFramework exists without items but has a name, treat as warning and allow legacy fallback
  * - MUST have moduleTitle
  */
 export function validateExtraction(analysis: CourseAnalysis): ValidationResult {
@@ -37,6 +38,10 @@ export function validateExtraction(analysis: CourseAnalysis): ValidationResult {
   const deepContent = analysis.deepContent;
   const hasNumberedFramework = deepContent?.numberedFramework?.items?.length && deepContent.numberedFramework.items.length > 0;
   const hasKeyTerminology = deepContent?.keyTerminology?.length && deepContent.keyTerminology.length >= 2;
+  // Fallback: legacy framework.steps or formulas provide structure
+  const hasLegacyFramework = analysis.framework?.steps?.length && analysis.framework.steps.length >= 2;
+  const hasFormulas = analysis.formulas?.length && analysis.formulas.length >= 1;
+  const hasDecisionCriteria = analysis.decisionCriteria?.goCondition && analysis.decisionCriteria?.noGoCondition;
 
   // Check for moduleTitle
   if (!analysis.moduleTitle || analysis.moduleTitle.trim().length === 0) {
@@ -49,35 +54,59 @@ export function validateExtraction(analysis: CourseAnalysis): ValidationResult {
     });
   }
 
-  // Check for numberedFramework OR keyTerminology
-  if (!hasNumberedFramework && !hasKeyTerminology) {
+  // Check for ANY usable content structure
+  const hasUsableContent = hasNumberedFramework || hasKeyTerminology || hasLegacyFramework || hasFormulas || hasDecisionCriteria;
+
+  if (!hasUsableContent) {
     errors.push({
       code: 'MISSING_NUMBERED_FRAMEWORK',
-      message: `EXTRACTION FAILED: No course-specific content found. The Course Analyst must extract EITHER:
+      message: `EXTRACTION FAILED: No course-specific content found. The Course Analyst must extract AT LEAST ONE of:
   1. A numbered framework (deepContent.numberedFramework) with items like "7 Levers", "5 Steps", etc.
-  2. OR at least 2 key terminology items (deepContent.keyTerminology) unique to this course.
+  2. At least 2 key terminology items (deepContent.keyTerminology) unique to this course.
+  3. A legacy framework with at least 2 steps (framework.steps).
+  4. At least 1 formula with variables (formulas[]).
+  5. Decision criteria with go/no-go conditions (decisionCriteria).
 
-Current extraction found: ${deepContent?.numberedFramework?.items?.length || 0} framework items, ${deepContent?.keyTerminology?.length || 0} terminology items.
+Current extraction found:
+  - Framework items: ${deepContent?.numberedFramework?.items?.length || 0}
+  - Terminology items: ${deepContent?.keyTerminology?.length || 0}
+  - Legacy framework steps: ${analysis.framework?.steps?.length || 0}
+  - Formulas: ${analysis.formulas?.length || 0}
+  - Decision criteria: ${hasDecisionCriteria ? 'yes' : 'no'}
 
 This usually means:
-  - The course content doesn't contain structured frameworks (check for numbered lists, steps, levers)
-  - The Course Analyst prompt needs adjustment for this content type
-  - The content may be too generic for tool generation`,
-      field: 'deepContent.numberedFramework OR deepContent.keyTerminology',
-      expected: 'numberedFramework.items.length >= 1 OR keyTerminology.length >= 2',
+  - The course content doesn't contain structured frameworks
+  - The content may be too generic for tool generation
+  - Try uploading content with clearer structure (numbered lists, steps, formulas)`,
+      field: 'deepContent OR framework OR formulas OR decisionCriteria',
+      expected: 'At least one structured content element',
       actual: `Framework: ${deepContent?.numberedFramework?.frameworkName || 'none'}, Items: ${deepContent?.numberedFramework?.items?.length || 0}, Terminology: ${deepContent?.keyTerminology?.length || 0}`
     });
   }
 
-  // Check if framework exists but has no items
-  if (deepContent?.numberedFramework && (!deepContent.numberedFramework.items || deepContent.numberedFramework.items.length === 0)) {
-    errors.push({
-      code: 'INCOMPLETE_FRAMEWORK_ITEMS',
-      message: `EXTRACTION INCOMPLETE: Framework "${deepContent.numberedFramework.frameworkName}" was identified but 0 items were extracted. The Course Analyst must extract each individual item with: number, name, fullLabel, definition, toolInputLabel. Without these, the tool cannot implement the framework.`,
-      field: 'deepContent.numberedFramework.items',
-      expected: 'Array of items with structure: { number, name, fullLabel, definition, toolInputLabel }',
-      actual: `frameworkName: "${deepContent.numberedFramework.frameworkName}", items: []`
-    });
+  // Check if framework exists but has no items - this is now a WARNING if other content exists
+  if (deepContent?.numberedFramework?.frameworkName && (!deepContent.numberedFramework.items || deepContent.numberedFramework.items.length === 0)) {
+    const hasOtherContent = hasKeyTerminology || hasLegacyFramework || hasFormulas || hasDecisionCriteria;
+
+    if (hasOtherContent) {
+      // Downgrade to warning - we can still build the tool with other content
+      warnings.push({
+        code: 'INCOMPLETE_FRAMEWORK_ITEMS',
+        message: `Framework "${deepContent.numberedFramework.frameworkName}" was identified but items could not be extracted. The tool will be built using other available content (terminology, formulas, decision criteria).`,
+        field: 'deepContent.numberedFramework.items',
+        expected: 'Array of items with structure: { number, name, fullLabel, definition, toolInputLabel }',
+        actual: `frameworkName: "${deepContent.numberedFramework.frameworkName}", items: []`
+      });
+    } else {
+      // Still an error if no other content
+      errors.push({
+        code: 'INCOMPLETE_FRAMEWORK_ITEMS',
+        message: `EXTRACTION INCOMPLETE: Framework "${deepContent.numberedFramework.frameworkName}" was identified but 0 items were extracted, and no other usable content was found. The Course Analyst must extract each individual item with: number, name, fullLabel, definition, toolInputLabel. Without these, the tool cannot implement the framework.`,
+        field: 'deepContent.numberedFramework.items',
+        expected: 'Array of items with structure: { number, name, fullLabel, definition, toolInputLabel }',
+        actual: `frameworkName: "${deepContent.numberedFramework.frameworkName}", items: []`
+      });
+    }
   }
 
   // Warnings for optional but valuable content

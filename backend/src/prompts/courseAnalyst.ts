@@ -40,16 +40,22 @@ The deep version uses the exact "LEVER 1" terminology from the course, making st
 
 <key_extractions>
 1. numberedFramework
-   When content includes numbered lists like "7 Levers" or "5 Steps":
-   - Extract every item with: number, name, fullLabel, definition, toolInputLabel
+   When content includes numbered lists like "7 Levers", "5 Steps", "4 Pillars":
+   - Extract EVERY item with: number, name, fullLabel, definition, toolInputLabel
    - The toolInputLabel becomes the actual input label in the generated tool
-   - Capture the complete set (all 7 levers, all 5 steps)
+   - Capture the complete set (all 7 levers, all 5 steps, etc.)
+
+   Also works for scoring systems (e.g., "Productivity Scoring System"):
+   - Each scoring category becomes an item (number: 1, 2, 3...)
+   - name: The category name (e.g., "Focus Time")
+   - toolInputLabel: How to ask for user input (e.g., "Rate your daily focus time (1-10)")
 
 2. keyTerminology
    Extract course-specific terms that students will recognize:
    - Term name, definition, and how to use it in the tool
    - Examples: "Power of One", "Cash Flow Story", "7 Levers"
    - Include at least 2 terms to maintain course connection
+   - CRITICAL: If no numbered framework, extract MORE terminology (3-5 terms minimum)
 
 3. expertWisdom
    Extract quotes with attribution:
@@ -62,6 +68,12 @@ The deep version uses the exact "LEVER 1" terminology from the course, making st
    - "30-45 days" becomes inferredMin: 30, inferredMax: 45
    - "at least 10%" becomes inferredMin: 10
    - Include the source quote for transparency
+
+5. FALLBACK: formulas and decisionCriteria
+   If no numbered framework is clearly present:
+   - Extract ANY formulas or calculations mentioned
+   - Extract clear decision criteria (what makes something good vs bad)
+   - These become the tool's core logic
 </key_extractions>
 
 <output_format>
