@@ -617,7 +617,7 @@ Design a tool that helps students APPLY the knowledge from this course to their 
       order: phase.order,
       // Map inputIds to actual ToolInput objects
       inputs: (design.inputs || [])
-        .filter(input => phase.inputIds.includes(input.name))
+        .filter(input => (phase.inputIds || []).includes(input.name))
         .map(input => ({
           name: input.name,
           type: input.type as 'text' | 'number' | 'select' | 'textarea',
