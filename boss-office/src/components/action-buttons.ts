@@ -5,6 +5,7 @@ export interface ActionButtonHandlers {
   onApprove: () => void;
   onRevise: () => void;
   onReject: () => void;
+  onCancel?: () => void;
 }
 
 // Render action buttons (for READY_FOR_REVIEW and QA_FAILED statuses)
@@ -17,7 +18,10 @@ export function renderActionButtons(
   // Allow actions for both READY_FOR_REVIEW and QA_FAILED (boss can still approve or revise)
   const isActionable = status === 'READY_FOR_REVIEW' || status === 'QA_FAILED';
 
-  if (!isActionable) {
+  // Allow cancelling stuck jobs (PROCESSING, DEPLOYING, SENT)
+  const isCancellable = status === 'PROCESSING' || status === 'DEPLOYING' || status === 'SENT';
+
+  if (!isActionable && !isCancellable) {
     container.innerHTML = `
       <div class="preview__actions">
         <p class="label" style="text-align: center; color: var(--color-grey);">
@@ -25,6 +29,29 @@ export function renderActionButtons(
         </p>
       </div>
     `;
+    return;
+  }
+
+  // Show cancel button for stuck jobs
+  if (isCancellable && !isActionable) {
+    container.innerHTML = `
+      <div class="preview__actions">
+        <p class="label" style="text-align: center; color: var(--color-grey); margin-bottom: var(--space-md);">
+          ${getStatusMessage(status)}
+        </p>
+        <button
+          id="cancel-btn"
+          class="btn btn--danger ${loading ? 'btn--loading' : ''}"
+          ${loading ? 'disabled' : ''}
+          style="margin-top: var(--space-sm);"
+        >
+          CANCEL JOB
+        </button>
+      </div>
+    `;
+
+    const cancelBtn = container.querySelector<HTMLButtonElement>('#cancel-btn');
+    cancelBtn?.addEventListener('click', () => handlers.onCancel?.());
     return;
   }
 

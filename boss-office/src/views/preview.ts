@@ -7,7 +7,7 @@ import {
   showSuccess,
   setModal,
 } from '../store/actions.ts';
-import { getJob, approveJob, rejectJob } from '../api/jobs.ts';
+import { getJob, approveJob, rejectJob, cancelJob } from '../api/jobs.ts';
 import { renderToolPreview } from '../components/tool-preview.ts';
 import { renderQAReport } from '../components/qa-report.ts';
 import { renderActionButtons, setActionButtonsLoading } from '../components/action-buttons.ts';
@@ -114,6 +114,7 @@ function renderPreviewContent(container: HTMLElement): void {
     onApprove: () => handleApprove(container),
     onRevise: () => handleRevise(container),
     onReject: () => handleReject(container),
+    onCancel: () => handleCancel(container),
   });
 }
 
@@ -219,6 +220,42 @@ async function handleReject(container: HTMLElement): Promise<void> {
         navigate('/inbox');
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to reject job';
+        showError(message);
+        if (actionsContainer) {
+          setActionButtonsLoading(actionsContainer, false);
+        }
+      }
+    },
+  });
+}
+
+// Handle cancel action (for stuck PROCESSING/DEPLOYING jobs)
+async function handleCancel(container: HTMLElement): Promise<void> {
+  const { currentJob } = store.getState();
+  if (!currentJob) return;
+
+  showConfirmDialog({
+    title: 'CANCEL JOB',
+    message: 'Are you sure you want to cancel this job? It will be moved to QA_FAILED or DEPLOY_FAILED status.',
+    confirmLabel: 'CANCEL JOB',
+    confirmClass: 'btn--danger',
+    onConfirm: async () => {
+      const actionsContainer = container.querySelector<HTMLElement>('#action-buttons-container');
+      if (actionsContainer) {
+        setActionButtonsLoading(actionsContainer, true);
+      }
+
+      try {
+        const result = await cancelJob(currentJob._id);
+
+        // Refresh the job to get new status
+        const updatedJob = await getJob(currentJob._id);
+        setCurrentJob(updatedJob);
+        updateJobInList(updatedJob);
+
+        showSuccess(result.message || 'Job cancelled');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to cancel job';
         showError(message);
         if (actionsContainer) {
           setActionButtonsLoading(actionsContainer, false);

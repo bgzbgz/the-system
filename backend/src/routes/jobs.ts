@@ -1201,7 +1201,7 @@ router.post('/:jobId/request-revision',
 /**
  * POST /api/jobs/:jobId/cancel
  * Cancel a stuck deployment or processing job
- * Transitions: DEPLOYING, PROCESSING → READY_FOR_REVIEW (if has tool_html) or QA_FAILED
+ * Transitions: SENT, DEPLOYING, PROCESSING → READY_FOR_REVIEW (if has tool_html) or FACTORY_FAILED
  */
 router.post('/:jobId/cancel', async (req: Request, res: Response) => {
   const { jobId } = req.params;
@@ -1213,14 +1213,23 @@ router.post('/:jobId/cancel', async (req: Request, res: Response) => {
       return sendNotFound(res, 'Job not found');
     }
 
-    // Only allow cancelling DEPLOYING or PROCESSING jobs
-    if (job.status !== JobStatus.DEPLOYING && job.status !== JobStatus.PROCESSING) {
-      return sendInvalidTransition(res, `Cannot cancel job in ${job.status} status. Only DEPLOYING or PROCESSING jobs can be cancelled.`);
+    // Allow cancelling SENT, DEPLOYING, or PROCESSING jobs
+    const cancellableStatuses = [JobStatus.SENT, JobStatus.DEPLOYING, JobStatus.PROCESSING];
+    if (!cancellableStatuses.includes(job.status)) {
+      return sendInvalidTransition(res, `Cannot cancel job in ${job.status} status. Only SENT, DEPLOYING, or PROCESSING jobs can be cancelled.`);
     }
 
     // Check if job has tool_html to determine target status
     const toolHtml = await jobArtifactService.getToolHtml(jobId);
-    const targetStatus = toolHtml ? JobStatus.READY_FOR_REVIEW : JobStatus.QA_FAILED;
+    // If has HTML, move to READY_FOR_REVIEW. Otherwise, FACTORY_FAILED (for SENT/PROCESSING) or DEPLOY_FAILED (for DEPLOYING)
+    let targetStatus: JobStatus;
+    if (toolHtml) {
+      targetStatus = JobStatus.READY_FOR_REVIEW;
+    } else if (job.status === JobStatus.DEPLOYING) {
+      targetStatus = JobStatus.DEPLOY_FAILED;
+    } else {
+      targetStatus = JobStatus.FACTORY_FAILED;
+    }
 
     // Update job status
     await jobService.updateJob(jobId, {
