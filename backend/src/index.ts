@@ -95,6 +95,10 @@ function performStartupValidation(): void {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy (Railway runs behind a reverse proxy)
+// This is required for express-rate-limit to work correctly
+app.set('trust proxy', 1);
+
 // Enable CORS for frontend (T059)
 app.use(corsMiddleware);
 
