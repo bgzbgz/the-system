@@ -2,7 +2,7 @@
 // Feature: Boss Office Redesign
 
 import { setCurrentJob, setCurrentJobLoading, showSuccess, showError, updateJobInList } from '../store/actions.ts';
-import { getJob, approveJob, requestRevision, rejectJob, cancelJob } from '../api/jobs.ts';
+import { getJob, approveJob, requestRevision, rejectJob, cancelJob, retryJob } from '../api/jobs.ts';
 import { getLogs } from '../api/logs.ts';
 import { navigate } from '../utils/router.ts';
 import { renderPipelineVisualizer, mapJobStatusToPipeline, calculateProgress } from '../components/pipeline-visualizer.ts';
@@ -92,6 +92,7 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
   const progress = calculateProgress(pipelineStages);
   const showActions = ['READY_FOR_REVIEW', 'QA_FAILED', 'ESCALATED'].includes(job.status);
   const isProcessing = ['SENT', 'PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(job.status);
+  const isFailed = ['DEPLOY_FAILED', 'FACTORY_FAILED'].includes(job.status);
 
   container.innerHTML = `
     <div class="view view--job-detail">
@@ -207,6 +208,17 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
             </button>
             <button class="btn btn--secondary job-detail__revise-btn">
               REQUEST REVISION
+            </button>
+            <button class="btn btn--danger job-detail__reject-btn">
+              REJECT
+            </button>
+          </div>
+        ` : ''}
+
+        ${isFailed ? `
+          <div class="job-detail__actions">
+            <button class="btn btn--primary job-detail__retry-job-btn">
+              RETRY
             </button>
             <button class="btn btn--danger job-detail__reject-btn">
               REJECT
@@ -600,6 +612,27 @@ function attachJobDetailListeners(container: HTMLElement, job: Job): void {
       const isCollapsed = previewContainer.classList.contains('tool-preview--collapsed');
       previewContainer.classList.toggle('tool-preview--collapsed');
       previewToggle.textContent = isCollapsed ? 'COLLAPSE' : 'EXPAND';
+    }
+  });
+
+  // Retry button (for DEPLOY_FAILED / FACTORY_FAILED)
+  const retryJobBtn = container.querySelector<HTMLButtonElement>('.job-detail__retry-job-btn');
+  retryJobBtn?.addEventListener('click', async () => {
+    if (!confirm('Retry this job? It will be sent back to the factory.')) return;
+
+    retryJobBtn.disabled = true;
+    retryJobBtn.innerHTML = '<span class="spinner spinner--small"></span> RETRYING...';
+
+    try {
+      await retryJob(job._id);
+      showSuccess('Job sent back to factory for retry');
+      if (currentContainer && currentJobId) {
+        renderJobDetailView(currentContainer, currentJobId);
+      }
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Failed to retry');
+      retryJobBtn.disabled = false;
+      retryJobBtn.textContent = 'RETRY';
     }
   });
 
