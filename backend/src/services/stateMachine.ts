@@ -31,14 +31,15 @@ export const VALID_TRANSITIONS = new Map<JobStatus | null, JobStatus[]>([
   // Initial submission
   [null, [JobStatus.SENT]],
 
-  // SENT: Workflow starts processing or fails immediately
-  [JobStatus.SENT, [JobStatus.PROCESSING, JobStatus.QA_FAILED]],
+  // SENT: Workflow starts processing, fails, or times out
+  [JobStatus.SENT, [JobStatus.PROCESSING, JobStatus.QA_FAILED, JobStatus.FACTORY_FAILED]],
 
-  // PROCESSING: QA can pass, fail, or need escalation
+  // PROCESSING: QA can pass, fail, need escalation, or timeout
   [JobStatus.PROCESSING, [
     JobStatus.READY_FOR_REVIEW,
     JobStatus.QA_FAILED,
-    JobStatus.ESCALATED
+    JobStatus.ESCALATED,
+    JobStatus.FACTORY_FAILED  // For timeouts and cancellations
   ]],
 
   // QA_FAILED: Boss can approve (deploy anyway), request revision, or reject
@@ -70,6 +71,9 @@ export const VALID_TRANSITIONS = new Map<JobStatus | null, JobStatus[]>([
 
   // DEPLOY_FAILED: Can retry deployment
   [JobStatus.DEPLOY_FAILED, [JobStatus.DEPLOYING]],
+
+  // FACTORY_FAILED: Can retry processing
+  [JobStatus.FACTORY_FAILED, [JobStatus.PROCESSING]],
 
   // Terminal states - no outgoing transitions
   [JobStatus.DEPLOYED, []],
