@@ -19,3 +19,7 @@ export * from './costService';
 // Feature 021 - Unified Tool Collections
 export * from './toolDefaultService';
 export * as toolResponseServiceV2 from './toolResponseService_v2';
+
+// Feature 020 - Self-Improving Factory (Quality Dashboard)
+export * as qualityStoreService from './qualityStoreService';
+export * as promptVersionService from './promptVersionService';

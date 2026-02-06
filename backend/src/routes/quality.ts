@@ -3,12 +3,42 @@
  * Feature: 020-self-improving-factory
  *
  * Endpoints for quality scoring, dashboard, and trends.
+ * Uses Supabase for data storage.
  */
 
 import { Router, Request, Response } from 'express';
-import * as qualityStore from '../db/services/qualityStore';
-import * as promptVersionStore from '../db/services/promptVersionStore';
-import { PromptName } from '../services/qualityScoring/types';
+import * as qualityStore from '../db/supabase/services/qualityStoreService';
+import * as promptVersionStore from '../db/supabase/services/promptVersionService';
+import { PromptName, DashboardSummary } from '../services/qualityScoring/types';
+import { isSupabaseConfigured } from '../db/supabase/client';
+
+/**
+ * Default empty dashboard summary for when Supabase is unavailable
+ */
+function getEmptyDashboardSummary(days: number): DashboardSummary {
+  const endDate = new Date();
+  const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+
+  return {
+    period: { start: startDate, end: endDate, days },
+    total_tools: 0,
+    average_score: 0,
+    pass_rate: 0,
+    score_trend: 'stable',
+    criterion_pass_rates: {
+      decision: 0,
+      zero_questions: 0,
+      easy_steps: 0,
+      feedback: 0,
+      gamification: 0,
+      results: 0,
+      commitment: 0,
+      brand: 0,
+    },
+    daily_scores: [],
+    prompt_performance: [],
+  };
+}
 
 const router = Router();
 
@@ -20,6 +50,13 @@ const router = Router();
  */
 router.get('/scores/:jobId', async (req: Request, res: Response) => {
   try {
+    if (!isSupabaseConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Quality scoring unavailable (Supabase not configured)',
+      });
+    }
+
     const score = await qualityStore.getScoreByJobId(req.params.jobId);
 
     if (!score) {
@@ -48,14 +85,27 @@ router.get('/scores/:jobId', async (req: Request, res: Response) => {
 router.get('/dashboard', async (req: Request, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
+
+    if (!isSupabaseConfigured()) {
+      console.log('[Quality] Supabase not configured, returning empty dashboard');
+      return res.json({
+        success: true,
+        data: getEmptyDashboardSummary(days),
+        supabase_available: false,
+      });
+    }
+
     const summary = await qualityStore.getDashboardSummary(days);
 
     res.json({ success: true, data: summary });
   } catch (error) {
     console.error('[Quality] Error fetching dashboard:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch dashboard summary',
+    // Return empty data on error instead of 500
+    const days = parseInt(req.query.days as string) || 30;
+    res.json({
+      success: true,
+      data: getEmptyDashboardSummary(days),
+      error: (error as Error).message,
     });
   }
 });
@@ -69,14 +119,26 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 router.get('/trends', async (req: Request, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
+
+    if (!isSupabaseConfigured()) {
+      console.log('[Quality] Supabase not configured, returning empty trends');
+      return res.json({
+        success: true,
+        data: { daily: [], criterion_trends: {} },
+        supabase_available: false,
+      });
+    }
+
     const trends = await qualityStore.getQualityTrends(days);
 
     res.json({ success: true, data: trends });
   } catch (error) {
     console.error('[Quality] Error fetching trends:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch quality trends',
+    // Return empty data on error instead of 500
+    res.json({
+      success: true,
+      data: { daily: [], criterion_trends: {} },
+      error: (error as Error).message,
     });
   }
 });
@@ -90,6 +152,19 @@ router.get('/trends', async (req: Request, res: Response) => {
 router.get('/prompts/:name/versions', async (req: Request, res: Response) => {
   try {
     const promptName = req.params.name as PromptName;
+
+    if (!isSupabaseConfigured()) {
+      return res.json({
+        success: true,
+        data: {
+          prompt_name: promptName,
+          versions: [],
+          active_version: null,
+        },
+        supabase_available: false,
+      });
+    }
+
     const versions = await promptVersionStore.getVersionsByPromptName(promptName);
     const activeVersion = await promptVersionStore.getActiveVersionByPromptName(promptName);
 
@@ -116,6 +191,13 @@ router.get('/prompts/:name/versions', async (req: Request, res: Response) => {
  */
 router.get('/prompts/:name/versions/:version', async (req: Request, res: Response) => {
   try {
+    if (!isSupabaseConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Prompt versions unavailable (Supabase not configured)',
+      });
+    }
+
     const promptName = req.params.name as PromptName;
     const version = parseInt(req.params.version);
 
@@ -144,6 +226,13 @@ router.get('/prompts/:name/versions/:version', async (req: Request, res: Respons
  */
 router.post('/prompts/:name/versions', async (req: Request, res: Response) => {
   try {
+    if (!isSupabaseConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Prompt versioning unavailable (Supabase not configured)',
+      });
+    }
+
     const promptName = req.params.name as PromptName;
     const { content, author, change_summary } = req.body;
 
@@ -154,8 +243,8 @@ router.post('/prompts/:name/versions', async (req: Request, res: Response) => {
       });
     }
 
-    // Import createPromptVersion from service
-    const { createPromptVersion } = await import('../services/promptVersioning');
+    // Import createPromptVersion from service (using Supabase version)
+    const { createPromptVersion } = await import('../services/promptVersioningSupabase');
     const version = await createPromptVersion({
       prompt_name: promptName,
       content,
@@ -179,6 +268,13 @@ router.post('/prompts/:name/versions', async (req: Request, res: Response) => {
  */
 router.patch('/prompts/:name/versions/:version/activate', async (req: Request, res: Response) => {
   try {
+    if (!isSupabaseConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Prompt versioning unavailable (Supabase not configured)',
+      });
+    }
+
     const promptName = req.params.name as PromptName;
     const version = parseInt(req.params.version);
 
