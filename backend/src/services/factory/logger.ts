@@ -8,7 +8,7 @@
  */
 
 import { PipelineContext, StageName, StageOutput, ValidationResult, ValidationStage } from './types';
-import { liveLog } from '../liveLogBuffer';
+import { liveLog, addLog } from '../liveLogBuffer';
 
 // Stage display names for the Factory Floor
 const STAGE_DISPLAY_NAMES: Record<string, string> = {
@@ -195,7 +195,7 @@ export function logQAIteration(
   );
 
   // Send to live log
-  liveLog.addLog({
+  addLog({
     level: passed ? 'success' : 'warn',
     category: 'pipeline',
     message: `QA Check #${iteration}: ${status} (score: ${score}/8)`,
