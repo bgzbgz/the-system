@@ -78,6 +78,16 @@ export class ToolFactory {
    * @returns Factory result with tool HTML or error
    */
   async processRequest(request: FactoryRequest): Promise<FactoryResult> {
+    // Sanitize content: collapse excessive whitespace that inflates file size
+    // (e.g. markdown table rows padded with millions of spaces from rich-text editors)
+    if (request.userRequest) {
+      const originalLen = request.userRequest.length;
+      request.userRequest = request.userRequest.replace(/[^\S\n]{2,}/g, ' ');
+      if (request.userRequest.length < originalLen) {
+        logger.info(`[Factory] Sanitized content: ${(originalLen / 1024).toFixed(0)}KB → ${(request.userRequest.length / 1024).toFixed(0)}KB`);
+      }
+    }
+
     // Validate request
     const validationError = this.validateRequest(request);
     if (validationError) {
