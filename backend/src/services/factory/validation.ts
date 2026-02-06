@@ -332,6 +332,34 @@ export function validateToolOutput(
     }
   }
 
+  // Check slide layout pattern (mandatory scaffold)
+  // The tool MUST use position:absolute slides with .active/.past classes
+  // It MUST NOT use wide flex containers (e.g., width:800vw) which break the layout
+  const hasWideContainer = /width\s*:\s*\d{3,}vw/i.test(html);
+  const hasAbsoluteSlides = /\.slide\s*\{[^}]*position\s*:\s*absolute/i.test(html);
+  const hasActiveClass = /\.slide\.active/i.test(html);
+  const hasPastClass = /\.slide\.past/i.test(html);
+
+  if (hasWideContainer) {
+    errors.push({
+      code: 'BROKEN_SLIDE_LAYOUT',
+      message: 'Tool uses a wide container (e.g., width:800vw) which breaks the slide layout. Slides MUST use position:absolute with .active/.past CSS classes. DO NOT use display:flex with multi-viewport-width containers.',
+      field: 'css',
+      expected: '.slide { position: absolute; } with .slide.active and .slide.past classes',
+      actual: 'Wide flex container detected'
+    });
+  }
+
+  if (!hasAbsoluteSlides || !hasActiveClass || !hasPastClass) {
+    errors.push({
+      code: 'MISSING_SLIDE_SCAFFOLD',
+      message: 'Tool is missing the mandatory slide CSS scaffold. Slides MUST use: .slide { position: absolute; } with .slide.active { opacity:1; transform:translateX(0); } and .slide.past { transform:translateX(-100%); }',
+      field: 'css',
+      expected: '.slide { position: absolute; } .slide.active { ... } .slide.past { ... }',
+      actual: `position:absolute=${hasAbsoluteSlides}, .active=${hasActiveClass}, .past=${hasPastClass}`
+    });
+  }
+
   // Check terminology usage
   // Fix #4: Critical terms (those appearing in framework items) are ERRORS, not warnings
   for (const term of context.terminology) {

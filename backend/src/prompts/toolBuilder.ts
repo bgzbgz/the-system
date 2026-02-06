@@ -68,31 +68,139 @@ VISUAL STRUCTURE OF EACH QUESTION SLIDE:
 The course insight comes from the builderContext - use terminology definitions, expert quotes, or framework explanations to show relevance.
 </critical_layout_rules>
 
+<mandatory_css_scaffold>
+YOU MUST USE THIS EXACT CSS PATTERN FOR SLIDES. DO NOT use display:flex with wide containers.
+DO NOT use width:800vw or any multi-viewport-width container. This scaffold is NON-NEGOTIABLE.
+
+/* --- MANDATORY SLIDE CSS (copy exactly) --- */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;               /* prevents any scrollbar */
+}
+
+.tool-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;             /* all slides stack on top of each other */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 40px 40px;
+  opacity: 0;                     /* hidden by default */
+  pointer-events: none;           /* non-interactive when hidden */
+  transform: translateX(100%);    /* offscreen to the right */
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.slide.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);       /* centered, visible */
+}
+
+.slide.past {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-100%);   /* offscreen to the left */
+}
+
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: rgba(178,178,178,0.3);
+  z-index: 100;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #FFF469;
+  transition: width 0.4s ease;
+}
+/* --- END MANDATORY SLIDE CSS --- */
+
+HTML structure MUST be:
+<div class="tool-container">
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  <div class="slide active" data-slide="0"><!-- welcome --></div>
+  <div class="slide" data-slide="1"><!-- question 1 --></div>
+  <div class="slide" data-slide="2"><!-- question 2 --></div>
+  <!-- ... more slides ... -->
+  <div class="slide" data-slide="N"><!-- results --></div>
+  <div class="slide" data-slide="N+1"><!-- commitment --></div>
+</div>
+</mandatory_css_scaffold>
+
+<mandatory_js_scaffold>
+YOU MUST USE THIS EXACT JAVASCRIPT PATTERN FOR NAVIGATION. Do not deviate.
+
+var currentSlide = 0;
+var slides = document.querySelectorAll('.slide');
+var totalSlides = slides.length;
+
+function goToSlide(n) {
+  if (n < 0 || n >= totalSlides) return;
+  slides.forEach(function(slide, i) {
+    slide.classList.remove('active', 'past');
+    if (i < n) slide.classList.add('past');
+    if (i === n) slide.classList.add('active');
+  });
+  currentSlide = n;
+  var progress = document.getElementById('progress');
+  if (progress) progress.style.width = ((n / (totalSlides - 1)) * 100) + '%';
+}
+
+function nextSlide() { goToSlide(currentSlide + 1); }
+function previousSlide() { goToSlide(currentSlide - 1); }
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' || e.key === 'ArrowRight') nextSlide();
+  if (e.key === 'ArrowLeft') previousSlide();
+});
+
+The first slide MUST have class="slide active" so it is visible on load.
+All other slides must NOT have the active class initially.
+</mandatory_js_scaffold>
+
 <slide_structure>
 Generate these slides in order:
 
-1. WELCOME SLIDE
+1. WELCOME SLIDE (class="slide active", first slide visible on load)
    - Black background, white text
    - Tool name (large, uppercase)
    - Tagline (what decision this helps make)
-   - "PRESS ENTER TO START" or "BEGIN" button
+   - "BEGIN" button that calls nextSlide()
 
-2. QUESTION SLIDES (one per input)
-   - Full viewport height (100vh)
+2. QUESTION SLIDES (one per input, class="slide")
    - Centered content with max-width: 600px
    - Question label at top
    - Single input field
-   - Course insight box below input (grey background, small text)
-   - Continue button at bottom
-   - Horizontal slide transition (transform: translateX)
+   - Course insight box below input
+   - "CONTINUE" button that calls nextSlide()
+   - Back button that calls previousSlide()
 
-3. RESULTS SLIDE
+3. RESULTS SLIDE (class="slide", allow vertical scrolling with overflow-y: auto)
    - Large GO/NO-GO verdict (green #4CAF50 for GO, red #F44336 for NO-GO)
    - Key findings summary
    - Expert quote if provided (in a styled blockquote)
    - Calculation breakdown if applicable
 
-4. COMMITMENT SLIDE
+4. COMMITMENT SLIDE (class="slide", allow vertical scrolling with overflow-y: auto)
    - WWW format: Who / What / When inputs
    - SAVE RESULTS button (yellow background)
    - Privacy message below save button (grey text):
@@ -179,22 +287,24 @@ Payload: { inputs: {...}, result: { verdict, score }, learnworldsUserId: urlPara
 </api_integration>
 
 <navigation>
-- Arrow keys for keyboard navigation
-- Enter to continue to next slide
-- Smooth CSS transitions between slides (transform: translateX, transition: 0.3s)
-- Progress bar at top showing current slide / total slides
-- Back button on each slide (except welcome)
+Navigation is handled by the mandatory JS scaffold above (goToSlide, nextSlide, previousSlide).
+- Arrow keys + Enter already wired in the scaffold
+- Each question slide has a CONTINUE button: onclick="nextSlide()"
+- Each question slide (except welcome) has a BACK button: onclick="previousSlide()"
+- Progress bar updates automatically via goToSlide()
 </navigation>
 
 <quality_checklist>
-1. One question per full-screen slide (no cramped layouts)
-2. Course insight box on every question slide
-3. Clear visual hierarchy with centered content
-4. Large, unmissable GO/NO-GO verdict on results
-5. Privacy message under save button
-6. Smooth slide transitions
-7. Progress indicator at top
-8. Brand colors only (black, white, yellow, grey)
+1. Uses the MANDATORY CSS scaffold (position:absolute slides, .active/.past classes) - NEVER use flex-based wide containers
+2. One question per full-screen slide (no cramped layouts)
+3. Course insight box on every question slide
+4. Clear visual hierarchy with centered content (max-width: 600px)
+5. Large, unmissable GO/NO-GO verdict on results
+6. Privacy message under save button
+7. Smooth slide transitions via the mandatory CSS transitions
+8. Progress indicator at top (fixed position, z-index 100)
+9. Brand colors only (black, white, yellow, grey)
+10. First slide has class="slide active", all others just class="slide"
 </quality_checklist>`
 };
 

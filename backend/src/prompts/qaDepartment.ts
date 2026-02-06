@@ -72,21 +72,30 @@ THE FAST TRACK 8-POINT CRITERIA:
 
 8. SMELLS LIKE FAST TRACK
    What to check:
-   - Uses brand colors? (#FF5733 orange, #1A1A2E navy, #F5F5F5 gray)
+   - Uses brand colors? (#000000 black, #FFFFFF white, #FFF469 yellow accent, #B2B2B2 grey)
    - Day-to-day language (not corporate speak)?
    - Confident, direct tone?
    - NO hedge words (might, maybe, perhaps, possibly)?
    - NO corporate speak (optimize, leverage, synergy, stakeholder)?
    - Action verbs (decide, cut, build, launch)?
-   FAIL if: Wrong colors, corporate language, hedge words, passive voice
+   - Sharp corners (no border-radius)?
+   FAIL if: Wrong colors, corporate language, hedge words, passive voice, rounded corners
 
 ADDITIONAL QUALITY CHECKS:
+
+CRITICAL LAYOUT CHECK:
+- Slides MUST use position:absolute (stacked on top of each other)
+- There must be .slide.active and .slide.past CSS classes controlling visibility
+- NEVER use display:flex with width:800vw or similar wide container patterns - this BREAKS the layout
+- Only ONE slide should be visible at a time (the one with class="active")
+- body/html MUST have overflow:hidden
+- If slides are laid out side-by-side in a wide flex container, this is a CRITICAL FAIL
 
 TECHNICAL:
 - Valid HTML5 structure
 - All CSS embedded (no external stylesheets)
 - All JS embedded (no external scripts)
-- Mobile responsive (max-width: 600px container)
+- Mobile responsive (max-width: 600px question content)
 - All form fields have labels and ids
 
 CONTENT:
@@ -153,8 +162,9 @@ REQUIRED ELEMENTS TO VERIFY:
 - Commitment section with Who/What/When
 - Progress indicator
 - Real-time validation on inputs
-- Brand colors (#FF5733, #1A1A2E, #F5F5F5)
-- Mobile-responsive container
+- Brand colors (#000000 black, #FFFFFF white, #FFF469 yellow, #B2B2B2 grey)
+- Mobile-responsive question content (max-width: 600px)
+- Slides use position:absolute with .active/.past classes (NOT flex wide containers)
 
 Return ONLY valid JSON. No explanations, no markdown code blocks.`
 };
