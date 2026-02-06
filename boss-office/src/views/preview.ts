@@ -7,7 +7,7 @@ import {
   showSuccess,
   setModal,
 } from '../store/actions.ts';
-import { getJob, approveJob, rejectJob, cancelJob } from '../api/jobs.ts';
+import { getJob, approveJob, rejectJob, cancelJob, retryJob } from '../api/jobs.ts';
 import { renderToolPreview } from '../components/tool-preview.ts';
 import { renderQAReport } from '../components/qa-report.ts';
 import { renderActionButtons, setActionButtonsLoading } from '../components/action-buttons.ts';
@@ -115,6 +115,7 @@ function renderPreviewContent(container: HTMLElement): void {
     onRevise: () => handleRevise(container),
     onReject: () => handleReject(container),
     onCancel: () => handleCancel(container),
+    onRetry: () => handleRetry(container),
   });
 }
 
@@ -220,6 +221,42 @@ async function handleReject(container: HTMLElement): Promise<void> {
         navigate('/inbox');
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to reject job';
+        showError(message);
+        if (actionsContainer) {
+          setActionButtonsLoading(actionsContainer, false);
+        }
+      }
+    },
+  });
+}
+
+// Handle retry action (for FACTORY_FAILED, QA_FAILED, DEPLOY_FAILED jobs)
+async function handleRetry(container: HTMLElement): Promise<void> {
+  const { currentJob } = store.getState();
+  if (!currentJob) return;
+
+  showConfirmDialog({
+    title: 'RETRY JOB',
+    message: 'This will re-run the factory pipeline from scratch. Continue?',
+    confirmLabel: 'RETRY',
+    confirmClass: 'btn--primary',
+    onConfirm: async () => {
+      const actionsContainer = container.querySelector<HTMLElement>('#action-buttons-container');
+      if (actionsContainer) {
+        setActionButtonsLoading(actionsContainer, true);
+      }
+
+      try {
+        await retryJob(currentJob._id);
+
+        // Refresh the job to get new status (should be PROCESSING now)
+        const updatedJob = await getJob(currentJob._id);
+        setCurrentJob(updatedJob);
+        updateJobInList(updatedJob);
+
+        showSuccess('Job sent back to factory for retry');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to retry job';
         showError(message);
         if (actionsContainer) {
           setActionButtonsLoading(actionsContainer, false);

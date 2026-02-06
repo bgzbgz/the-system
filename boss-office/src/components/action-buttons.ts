@@ -6,6 +6,7 @@ export interface ActionButtonHandlers {
   onRevise: () => void;
   onReject: () => void;
   onCancel?: () => void;
+  onRetry?: () => void;
 }
 
 // Render action buttons (for READY_FOR_REVIEW and QA_FAILED statuses)
@@ -21,7 +22,10 @@ export function renderActionButtons(
   // Allow cancelling stuck jobs (PROCESSING, DEPLOYING, SENT)
   const isCancellable = status === 'PROCESSING' || status === 'DEPLOYING' || status === 'SENT';
 
-  if (!isActionable && !isCancellable) {
+  // Allow retrying failed jobs
+  const isRetryable = status === 'FACTORY_FAILED' || status === 'DEPLOY_FAILED';
+
+  if (!isActionable && !isCancellable && !isRetryable) {
     container.innerHTML = `
       <div class="preview__actions">
         <p class="label" style="text-align: center; color: var(--color-grey);">
@@ -55,11 +59,55 @@ export function renderActionButtons(
     return;
   }
 
+  // Show retry button for failed jobs (FACTORY_FAILED, DEPLOY_FAILED)
+  if (isRetryable) {
+    container.innerHTML = `
+      <div class="preview__actions">
+        <p class="label" style="text-align: center; color: #ff4444; margin-bottom: var(--space-md);">
+          ${getStatusMessage(status)}
+        </p>
+        <button
+          id="retry-btn"
+          class="btn btn--primary ${loading ? 'btn--loading' : ''}"
+          ${loading ? 'disabled' : ''}
+        >
+          RETRY
+        </button>
+        <button
+          id="reject-btn"
+          class="btn btn--danger ${loading ? 'btn--loading' : ''}"
+          ${loading ? 'disabled' : ''}
+          style="margin-top: var(--space-sm);"
+        >
+          REJECT
+        </button>
+      </div>
+    `;
+
+    const retryBtn = container.querySelector<HTMLButtonElement>('#retry-btn');
+    const rejectBtn = container.querySelector<HTMLButtonElement>('#reject-btn');
+    retryBtn?.addEventListener('click', () => handlers.onRetry?.());
+    rejectBtn?.addEventListener('click', handlers.onReject);
+    return;
+  }
+
   // Show warning for QA_FAILED
   const qaFailedWarning = status === 'QA_FAILED'
     ? `<p class="preview__warning" style="text-align: center; color: var(--color-yellow); margin-bottom: var(--space-md); font-size: 0.875rem;">
-        ⚠️ QA checks failed. Review carefully before approving.
+        QA checks failed. Review carefully before approving.
       </p>`
+    : '';
+
+  // Show retry button for QA_FAILED alongside approve/revise/reject
+  const retryButton = status === 'QA_FAILED'
+    ? `<button
+        id="retry-btn"
+        class="btn btn--secondary ${loading ? 'btn--loading' : ''}"
+        ${loading ? 'disabled' : ''}
+        style="margin-top: var(--space-sm);"
+      >
+        RETRY FROM SCRATCH
+      </button>`
     : '';
 
   container.innerHTML = `
@@ -79,6 +127,7 @@ export function renderActionButtons(
       >
         REVISE
       </button>
+      ${retryButton}
       <button
         id="reject-btn"
         class="btn btn--danger ${loading ? 'btn--loading' : ''}"
@@ -93,10 +142,12 @@ export function renderActionButtons(
   const approveBtn = container.querySelector<HTMLButtonElement>('#approve-btn');
   const reviseBtn = container.querySelector<HTMLButtonElement>('#revise-btn');
   const rejectBtn = container.querySelector<HTMLButtonElement>('#reject-btn');
+  const retryBtn = container.querySelector<HTMLButtonElement>('#retry-btn');
 
   approveBtn?.addEventListener('click', handlers.onApprove);
   reviseBtn?.addEventListener('click', handlers.onRevise);
   rejectBtn?.addEventListener('click', handlers.onReject);
+  retryBtn?.addEventListener('click', () => handlers.onRetry?.());
 }
 
 // Get status message for non-actionable states
@@ -118,6 +169,10 @@ function getStatusMessage(status: JobStatus): string {
       return 'This tool has been deployed';
     case 'REJECTED':
       return 'This tool has been rejected';
+    case 'FACTORY_FAILED':
+      return 'Factory processing failed. You can retry.';
+    case 'DEPLOY_FAILED':
+      return 'Deployment failed. You can retry.';
     default:
       return 'Actions not available';
   }

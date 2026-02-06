@@ -574,8 +574,7 @@ router.post('/:jobId/retry', async (req: Request, res: Response) => {
     }
 
     // Determine retry type based on job status (spec 023)
-    // Note: No FACTORY_FAILED status exists - use workflow_error or QA_FAILED
-    const isFactoryFailed = job.workflow_error || job.status === JobStatus.QA_FAILED;
+    const isFactoryFailed = job.workflow_error || job.status === JobStatus.QA_FAILED || job.status === JobStatus.FACTORY_FAILED;
     const isDeployFailed = job.status === JobStatus.DEPLOY_FAILED;
 
     if (!isFactoryFailed && !isDeployFailed) {

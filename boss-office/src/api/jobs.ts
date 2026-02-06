@@ -300,6 +300,20 @@ export async function cancelJob(jobId: string): Promise<CancelResponse> {
   return response;
 }
 
+// Retry response shape from backend
+interface RetryResponse {
+  success: boolean;
+  job_id: string;
+  status: string;
+  message: string;
+}
+
+// Retry a failed job (FACTORY_FAILED, QA_FAILED, DEPLOY_FAILED)
+export async function retryJob(jobId: string): Promise<RetryResponse> {
+  const response = await api.post<RetryResponse>(`/jobs/${jobId}/retry`);
+  return response;
+}
+
 // ========== AI-FIRST ANALYSIS FLOW ==========
 
 /**
@@ -484,6 +498,7 @@ export const jobsApi = {
   revise: requestRevision,
   reject: rejectJob,
   cancel: cancelJob,
+  retry: retryJob,
   // AI-first flow
   getTemplates,
   analyzeContent,
