@@ -163,11 +163,11 @@ export function validateDesignAlignment(
   // Check framework item coverage
   if (frameworkItems.length > 0) {
     if (designInputs.length < frameworkItems.length) {
-      // Find which items are missing
-      const inputLabelsLower = designInputs.map(i => i.label.toLowerCase());
+      // Find which items are missing (guard against undefined labels from AI output)
+      const inputLabelsLower = designInputs.map(i => (i.label || '').toLowerCase());
       const missingItems = frameworkItems.filter(item => {
-        const labelLower = item.toolInputLabel.toLowerCase();
-        const nameLower = item.name.toLowerCase();
+        const labelLower = (item.toolInputLabel || item.name || '').toLowerCase();
+        const nameLower = (item.name || '').toLowerCase();
         return !inputLabelsLower.some(l => l.includes(labelLower) || l.includes(nameLower));
       });
 
@@ -191,7 +191,7 @@ export function validateDesignAlignment(
       .join(' ');
 
     const unusedTerms = terminology.filter(t =>
-      !allLabelsAndHelp.includes(t.term.toLowerCase())
+      t.term && !allLabelsAndHelp.includes(t.term.toLowerCase())
     );
 
     if (unusedTerms.length > 0) {
@@ -298,8 +298,9 @@ export function validateToolOutput(
 
   const htmlLower = html.toLowerCase();
 
-  // Check framework items in HTML
+  // Check framework items in HTML (skip items with missing labels from AI output)
   for (const item of context.frameworkItems) {
+    if (!item.label) continue;
     // Check for the label (case-insensitive)
     const labelLower = item.label.toLowerCase();
     if (!htmlLower.includes(labelLower)) {
@@ -363,12 +364,13 @@ export function validateToolOutput(
   // Check terminology usage
   // Fix #4: Critical terms (those appearing in framework items) are ERRORS, not warnings
   for (const term of context.terminology) {
+    if (!term.term) continue;
     const termLower = term.term.toLowerCase();
     if (!htmlLower.includes(termLower)) {
       // Check if term is critical (appears in framework item labels or definitions)
       const isCritical = context.frameworkItems.some(item =>
-        item.label.toLowerCase().includes(termLower) ||
-        item.definition.toLowerCase().includes(termLower)
+        (item.label || '').toLowerCase().includes(termLower) ||
+        (item.definition || '').toLowerCase().includes(termLower)
       );
 
       if (isCritical) {
@@ -563,29 +565,33 @@ export function buildBuilderContext(
   const frameworkItems: BuilderContext['frameworkItems'] = [];
   if (numberedFramework?.items) {
     for (const item of numberedFramework.items) {
-      // Try to find matching input from design
-      const matchingInput = design.inputs.find(i =>
-        i.label.toLowerCase().includes(item.name.toLowerCase()) ||
-        i.label.toLowerCase().includes(item.toolInputLabel.toLowerCase())
+      // Skip malformed items from AI output
+      if (!item.name && !item.toolInputLabel) continue;
+      // Try to find matching input from design (guard against undefined fields)
+      const matchingInput = (design.inputs || []).find(i =>
+        (i.label || '').toLowerCase().includes((item.name || '').toLowerCase()) ||
+        (i.label || '').toLowerCase().includes((item.toolInputLabel || '').toLowerCase())
       );
 
       frameworkItems.push({
         number: item.number,
-        label: item.toolInputLabel || item.fullLabel || item.name,
-        definition: item.definition,
+        label: item.toolInputLabel || item.fullLabel || item.name || `Item ${item.number}`,
+        definition: item.definition || '',
         inputType: (matchingInput?.type as 'number' | 'text' | 'select') || 'number',
         placeholder: matchingInput?.placeholder || `e.g., ${item.number * 1000}`
       });
     }
   }
 
-  // Build terminology list
-  const terminologyList: BuilderContext['terminology'] = terminology.map(t => ({
-    term: t.term,
-    useIn: t.howToUseInTool?.includes('label') ? 'label' as const :
-           t.howToUseInTool?.includes('result') ? 'resultSection' as const :
-           'helpText' as const
-  }));
+  // Build terminology list (filter out entries with no term from AI output)
+  const terminologyList: BuilderContext['terminology'] = terminology
+    .filter(t => t.term)
+    .map(t => ({
+      term: t.term,
+      useIn: t.howToUseInTool?.includes('label') ? 'label' as const :
+             t.howToUseInTool?.includes('result') ? 'resultSection' as const :
+             'helpText' as const
+    }));
 
   // Get expert quote if available
   const expertQuote = quotes.length > 0 ? {

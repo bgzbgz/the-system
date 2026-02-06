@@ -343,11 +343,16 @@ router.post('/create-from-analysis',
         });
       }
     }).catch(async (err) => {
-      logger.logError('Factory processing failed', err as Error, { job_id: jobId });
-      await jobService.updateJob(jobId, {
-        status: JobStatus.QA_FAILED,
-        workflow_error: (err as Error).message
-      });
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      logger.logError('Factory processing failed', err instanceof Error ? err : new Error(errorMsg), { job_id: jobId });
+      try {
+        await jobService.updateJob(jobId, {
+          status: JobStatus.FACTORY_FAILED,
+          workflow_error: errorMsg || 'Unknown factory error'
+        });
+      } catch (updateErr) {
+        console.error(`[Jobs] Failed to update job ${jobId} after factory error:`, updateErr);
+      }
     });
 
     logger.logOperation({
@@ -528,11 +533,16 @@ router.post('/',
           });
         }
       }).catch(async (err) => {
-        logger.logError('Factory processing failed', err as Error, { job_id: jobId });
-        await jobService.updateJob(jobId, {
-          status: JobStatus.QA_FAILED,
-          workflow_error: (err as Error).message
-        });
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.logError('Factory processing failed', err instanceof Error ? err : new Error(errorMsg), { job_id: jobId });
+        try {
+          await jobService.updateJob(jobId, {
+            status: JobStatus.FACTORY_FAILED,
+            workflow_error: errorMsg || 'Unknown factory error'
+          });
+        } catch (updateErr) {
+          console.error(`[Jobs] Failed to update job ${jobId} after factory error:`, updateErr);
+        }
       });
 
       logger.logOperation({
@@ -677,11 +687,16 @@ router.post('/:jobId/retry', async (req: Request, res: Response) => {
           });
         }
       }).catch(async (err) => {
-        logger.logError('Factory retry failed', err as Error, { job_id: jobId });
-        await jobService.updateJob(jobId, {
-          status: JobStatus.QA_FAILED,
-          workflow_error: (err as Error).message
-        });
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.logError('Factory retry failed', err instanceof Error ? err : new Error(errorMsg), { job_id: jobId });
+        try {
+          await jobService.updateJob(jobId, {
+            status: JobStatus.FACTORY_FAILED,
+            workflow_error: errorMsg || 'Unknown factory error'
+          });
+        } catch (updateErr) {
+          console.error(`[Jobs] Failed to update job ${jobId} after retry error:`, updateErr);
+        }
       });
 
       logger.logOperation({
@@ -1106,11 +1121,16 @@ router.post('/:jobId/revise',
           });
         }
       }).catch(async (err) => {
-        logger.logError('Revision processing failed', err as Error, { job_id: jobId });
-        await jobService.updateJob(jobId, {
-          status: JobStatus.QA_FAILED,
-          workflow_error: (err as Error).message
-        });
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.logError('Revision processing failed', err instanceof Error ? err : new Error(errorMsg), { job_id: jobId });
+        try {
+          await jobService.updateJob(jobId, {
+            status: JobStatus.FACTORY_FAILED,
+            workflow_error: errorMsg || 'Unknown factory error'
+          });
+        } catch (updateErr) {
+          console.error(`[Jobs] Failed to update job ${jobId} after revision error:`, updateErr);
+        }
       });
 
       logger.logOperation({

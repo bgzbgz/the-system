@@ -518,7 +518,7 @@ export class ToolFactory {
    * Check if error is transient (retryable)
    */
   private isTransientError(error: Error): boolean {
-    const message = error.message.toLowerCase();
+    const message = (error.message || '').toLowerCase();
     return (
       message.includes('network') ||
       message.includes('timeout') ||
