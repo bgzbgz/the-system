@@ -18,7 +18,7 @@ import { ConfigurationState } from './config/types';
 import { CONFIG_BLOCKING_MESSAGE } from './config/errors';
 import healthRouter from './routes/health';
 import factoryRouter from './routes/factory';
-import callbacksRouter from './routes/callbacks';
+// REMOVED: callbacksRouter - n8n callbacks deprecated (spec 023-route-rewiring)
 import jobsRouter from './routes/jobs';
 import auditRouter from './routes/audit';
 import principlesRouter from './routes/principles';
@@ -51,6 +51,7 @@ import { githubService } from './services/github';
 import { ensureIndexes as ensureLogStoreIndexes, TTL_DAYS as LOG_TTL_DAYS } from './services/logStore';
 import { initializeLearnWorldsConfig, logLearnWorldsConfigStatus, isLearnWorldsConfigured } from './config/learnworlds';
 import { initializeAuth as initializeLearnWorldsAuth, ensureToolVisitsIndexes, ensurePendingAccessIndexes } from './services/learnworlds';
+import { startStaleJobMonitor } from './services/staleJobMonitor';
 
 // ========== STARTUP VALIDATION ==========
 
@@ -130,8 +131,7 @@ app.use('/api/audit', auditRouter);
 // Apply strict rate limit: 20 requests per 15 minutes (expensive AI operations)
 app.use('/api/factory', strictLimiter, factoryRouter);
 
-// Callbacks routes - for n8n workflow callbacks (spec 016-backend-api)
-app.use('/api/factory', callbacksRouter);
+// REMOVED: Callbacks routes - n8n deprecated (spec 023-route-rewiring)
 
 // Principles routes - serves Fast Track principle documents
 app.use('/api/principles', principlesRouter);
@@ -327,6 +327,12 @@ async function startServer(): Promise<void> {
 
   // Step 3: Initialize Supabase (primary database)
   const usesSupabase = await initializeSupabase();
+
+  // Step 3a: Start stale job monitor (only if Supabase is configured)
+  if (usesSupabase) {
+    startStaleJobMonitor();
+    console.log('[Startup] Stale job monitor started');
+  }
 
   // Step 3b: Initialize MongoDB (legacy - optional - T058)
   const usesMongoDB = await initializeDatabase();

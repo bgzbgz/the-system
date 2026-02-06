@@ -172,6 +172,28 @@ export async function deleteJob(jobId: string): Promise<void> {
   await updateJob(jobId, { status: 'REJECTED' });
 }
 
+/**
+ * Get all jobs with a specific status
+ * Used by stale job monitor to find stuck jobs
+ */
+export async function getJobsByStatus(status: JobStatus): Promise<Job[]> {
+  const supabase = getSupabase();
+  const tenantId = getTenantId();
+
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('status', status)
+    .eq('tenant_id', tenantId)
+    .order('updated_at', { ascending: true }); // Oldest first
+
+  if (error) {
+    throw new Error(`Failed to get jobs by status: ${error.message}`);
+  }
+
+  return (data || []).map(mapRowToJob);
+}
+
 // ========== JOB ARTIFACTS ==========
 
 /**

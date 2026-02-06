@@ -54,12 +54,9 @@ export enum EndpointStatus {
 /**
  * Required configuration values
  * Per contracts/config.yaml: All fields MUST be non-empty strings
+ * Note: FACTORY_WEBHOOK_URL and DEPLOY_WEBHOOK_URL removed (spec 023)
  */
 export interface Configuration {
-  /** URL for Factory webhook (tool generation) */
-  FACTORY_WEBHOOK_URL: string;
-  /** URL for Deployment webhook (publishing) */
-  DEPLOY_WEBHOOK_URL: string;
   /** Shared secret for callback authentication - NEVER log or expose */
   CALLBACK_SECRET: string;
 }

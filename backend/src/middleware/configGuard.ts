@@ -4,6 +4,7 @@
  * Per contracts/startup.yaml blocking behavior
  *
  * Blocks requests when ConfigurationState is CONFIG_ERROR
+ * Note: factoryConfigGuard and deployConfigGuard removed (spec 023 - n8n removed)
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -44,54 +45,6 @@ export function configGuard(req: Request, res: Response, next: NextFunction): vo
     missing_fields: missingFields,
     timestamp: new Date().toISOString()
   });
-}
-
-/**
- * Factory-specific configuration guard
- * Blocks factory-related operations when FACTORY_WEBHOOK_URL is not configured
- *
- * @param req - Express request
- * @param res - Express response
- * @param next - Next middleware function
- */
-export function factoryConfigGuard(req: Request, res: Response, next: NextFunction): void {
-  const missingFields = getMissingConfigFields();
-
-  if (missingFields.includes('FACTORY_WEBHOOK_URL')) {
-    res.status(503).json({
-      error: 'Factory webhook URL not configured',
-      code: 'FACTORY_WEBHOOK_NOT_CONFIGURED',
-      field: 'FACTORY_WEBHOOK_URL',
-      timestamp: new Date().toISOString()
-    });
-    return;
-  }
-
-  next();
-}
-
-/**
- * Deployment-specific configuration guard
- * Blocks deployment operations when DEPLOY_WEBHOOK_URL is not configured
- *
- * @param req - Express request
- * @param res - Express response
- * @param next - Next middleware function
- */
-export function deployConfigGuard(req: Request, res: Response, next: NextFunction): void {
-  const missingFields = getMissingConfigFields();
-
-  if (missingFields.includes('DEPLOY_WEBHOOK_URL')) {
-    res.status(503).json({
-      error: 'Deployment webhook URL not configured',
-      code: 'DEPLOY_WEBHOOK_NOT_CONFIGURED',
-      field: 'DEPLOY_WEBHOOK_URL',
-      timestamp: new Date().toISOString()
-    });
-    return;
-  }
-
-  next();
 }
 
 export default configGuard;

@@ -25,19 +25,15 @@ import {
  * Load configuration from environment variables
  * Per contracts/config.yaml: Reads from process.env
  *
- * Note: FACTORY_WEBHOOK_URL and DEPLOY_WEBHOOK_URL are no longer required
- * since spec 023-route-rewiring removed n8n dependency. Processing is now
+ * Note: spec 023-route-rewiring removed n8n dependency. Processing is now
  * done in-house via toolFactory and githubService.
  *
  * @returns Partial configuration (may have missing values)
  */
 function loadFromEnvironment(): Partial<Configuration> {
   return {
-    // Legacy webhook URLs - no longer required (spec 023)
-    FACTORY_WEBHOOK_URL: process.env.FACTORY_WEBHOOK_URL || 'not-required',
-    DEPLOY_WEBHOOK_URL: process.env.DEPLOY_WEBHOOK_URL || 'not-required',
-    // Callback secret for internal callbacks (still used)
-    CALLBACK_SECRET: process.env.CALLBACK_SECRET || ''
+    // Callback secret for internal callbacks
+    CALLBACK_SECRET: process.env.CALLBACK_SECRET || 'internal-only'
   };
 }
 
@@ -45,10 +41,9 @@ function loadFromEnvironment(): Partial<Configuration> {
 
 /**
  * Mapping of config fields to their error codes
+ * Note: FACTORY_WEBHOOK_URL and DEPLOY_WEBHOOK_URL removed (spec 023)
  */
 const FIELD_ERROR_CODES: Record<ConfigurationField, ConfigErrorCode> = {
-  FACTORY_WEBHOOK_URL: ConfigErrorCode.FACTORY_WEBHOOK_NOT_CONFIGURED,
-  DEPLOY_WEBHOOK_URL: ConfigErrorCode.DEPLOY_WEBHOOK_NOT_CONFIGURED,
   CALLBACK_SECRET: ConfigErrorCode.CALLBACK_SECRET_NOT_CONFIGURED
 };
 
@@ -74,6 +69,7 @@ function validateField(field: ConfigurationField, value: string | undefined): Co
 /**
  * Validate all configuration values
  * Per contracts/startup.yaml: Validates all required values exist and are non-empty
+ * Note: FACTORY_WEBHOOK_URL and DEPLOY_WEBHOOK_URL removed (spec 023)
  *
  * @param config - Partial configuration to validate
  * @returns ConfigValidationResult with state and any errors
@@ -81,8 +77,6 @@ function validateField(field: ConfigurationField, value: string | undefined): Co
 export function validateConfiguration(config: Partial<Configuration>): ConfigValidationResult {
   const errors: ConfigurationError[] = [];
   const fieldsToValidate: ConfigurationField[] = [
-    'FACTORY_WEBHOOK_URL',
-    'DEPLOY_WEBHOOK_URL',
     'CALLBACK_SECRET'
   ];
 
@@ -182,26 +176,6 @@ export function getConfigValue(field: ConfigurationField): string | undefined {
     return undefined;
   }
   return cachedConfig?.[field];
-}
-
-/**
- * Get Factory webhook URL
- * Convenience method for factory.ts
- *
- * @returns Factory webhook URL or undefined if not configured
- */
-export function getFactoryWebhookUrl(): string | undefined {
-  return getConfigValue('FACTORY_WEBHOOK_URL');
-}
-
-/**
- * Get Deploy webhook URL
- * Convenience method for deploy.ts
- *
- * @returns Deploy webhook URL or undefined if not configured
- */
-export function getDeployWebhookUrl(): string | undefined {
-  return getConfigValue('DEPLOY_WEBHOOK_URL');
 }
 
 /**
