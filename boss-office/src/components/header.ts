@@ -8,6 +8,7 @@ export function renderHeader(container: HTMLElement): void {
   const isDashboardActive = currentRoute === '/';
   const isCreateActive = currentRoute === '/create' || currentRoute === '/submit';
   const isInboxActive = currentRoute === '/inbox' || currentRoute.startsWith('/job') || currentRoute.startsWith('/preview');
+  const isFactoryActive = currentRoute === '/factory';
   const isMetricsActive = currentRoute === '/metrics';
   const isPrinciplesActive = currentRoute === '/principles';
 
@@ -25,6 +26,9 @@ export function renderHeader(container: HTMLElement): void {
         </a>
         <a href="#/inbox" class="header__link ${isInboxActive ? 'header__link--active' : ''}">
           INBOX
+        </a>
+        <a href="#/factory" class="header__link ${isFactoryActive ? 'header__link--active' : ''}">
+          FACTORY
         </a>
         <a href="#/metrics" class="header__link ${isMetricsActive ? 'header__link--active' : ''}">
           METRICS

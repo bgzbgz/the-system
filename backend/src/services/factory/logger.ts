@@ -4,9 +4,27 @@
  *
  * Structured logging for pipeline lifecycle events.
  * All logs include jobId for traceability.
+ * Now also sends to liveLogBuffer for Factory Floor view.
  */
 
 import { PipelineContext, StageName, StageOutput, ValidationResult, ValidationStage } from './types';
+import { liveLog } from '../liveLogBuffer';
+
+// Stage display names for the Factory Floor
+const STAGE_DISPLAY_NAMES: Record<string, string> = {
+  secretary: 'Secretary',
+  contentSummarizer: 'Content Summarizer',
+  courseAnalyst: 'Course Analyst',
+  knowledgeArchitect: 'Knowledge Architect',
+  audienceProfiler: 'Audience Profiler',
+  exampleGenerator: 'Example Generator',
+  copyWriter: 'Copy Writer',
+  templateDecider: 'Template Decider',
+  toolBuilder: 'Tool Builder',
+  brandGuardian: 'Brand Guardian',
+  qaDepartment: 'QA Department',
+  feedbackApplier: 'Feedback Applier'
+};
 
 // ========== PIPELINE LIFECYCLE ==========
 
@@ -22,6 +40,9 @@ export function logPipelineStart(context: PipelineContext, userRequest: string):
     : userRequest;
 
   console.log(`[Factory] Pipeline start: ${context.jobId} (request: "${preview}")`);
+
+  // Send to live log
+  liveLog.jobStarted(context.jobId, context.toolName || 'New Tool');
 }
 
 /**
@@ -37,6 +58,11 @@ export function logPipelineComplete(context: PipelineContext, success: boolean):
   console.log(
     `[Factory] Pipeline complete: ${context.jobId} (${elapsed}ms, ${status}, revisions: ${context.revisionCount})`
   );
+
+  // Send to live log
+  if (success) {
+    liveLog.jobCompleted(context.jobId, context.toolName || 'Tool');
+  }
 }
 
 /**
@@ -63,6 +89,10 @@ export function logPipelineClarification(context: PipelineContext, questionCount
  */
 export function logStageStart(context: PipelineContext, stage: StageName): void {
   console.log(`[Factory] Stage start: ${stage} (job: ${context.jobId})`);
+
+  // Send to live log
+  const displayName = STAGE_DISPLAY_NAMES[stage] || stage;
+  liveLog.stageStarted(context.jobId, context.toolName || 'Tool', displayName);
 }
 
 /**
@@ -115,6 +145,10 @@ export function logStageComplete(
   console.log(
     `[Factory] Stage complete: ${stage} (${durationMs}ms${summary ? ', ' + summary : ''}) (job: ${context.jobId})`
   );
+
+  // Send to live log
+  const displayName = STAGE_DISPLAY_NAMES[stage] || stage;
+  liveLog.stageCompleted(context.jobId, context.toolName || 'Tool', displayName, durationMs);
 }
 
 /**
@@ -133,6 +167,10 @@ export function logStageFailed(context: PipelineContext, stage: StageName, error
   if (process.env.DEBUG === 'true' && error.stack) {
     console.error(`[Factory] Stack trace: ${error.stack}`);
   }
+
+  // Send to live log
+  const displayName = STAGE_DISPLAY_NAMES[stage] || stage;
+  liveLog.stageFailed(context.jobId, context.toolName || 'Tool', displayName, error.message);
 }
 
 // ========== QA LOOP ==========
@@ -155,6 +193,16 @@ export function logQAIteration(
   console.log(
     `[Factory] QA iteration ${iteration}: ${status} (score: ${score}/8) (job: ${context.jobId})`
   );
+
+  // Send to live log
+  liveLog.addLog({
+    level: passed ? 'success' : 'warn',
+    category: 'pipeline',
+    message: `QA Check #${iteration}: ${status} (score: ${score}/8)`,
+    jobId: context.jobId,
+    jobName: context.toolName || 'Tool',
+    stage: 'QA Department'
+  });
 }
 
 /**

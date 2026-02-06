@@ -10,6 +10,7 @@ import { renderInboxView, cleanupInboxView } from './views/inbox.ts';
 import { renderJobDetailView, stopPolling as stopJobPolling } from './views/job-detail.ts';
 import { renderAILogsView } from './views/ai-logs.ts';
 import { renderMetricsView } from './views/metrics.ts';
+import { renderFactoryFloorView, stopPolling as stopFactoryPolling } from './views/factory-floor.ts';
 
 // Legacy views (kept for compatibility)
 import { renderPrinciplesView } from './views/principles.ts';
@@ -64,6 +65,7 @@ function cleanupCurrentView(): void {
   cleanupInboxView();
   cleanupCreateToolView();
   stopJobPolling();
+  stopFactoryPolling();
 }
 
 // Render the current view based on route
@@ -104,6 +106,10 @@ function renderCurrentView(): void {
 
     case '/metrics':
       renderMetricsView(contentContainer);
+      break;
+
+    case '/factory':
+      renderFactoryFloorView(contentContainer);
       break;
 
     // Legacy routes (redirects and compatibility)

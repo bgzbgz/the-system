@@ -104,6 +104,8 @@ export interface PipelineContext {
   jobId: string;
   /** Unique request ID (for logging) */
   requestId: string;
+  /** Tool name (for live log display) */
+  toolName?: string;
   /** Pipeline start timestamp */
   startTime: Date;
   /** Currently executing stage */

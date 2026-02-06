@@ -34,6 +34,7 @@ import qualityRouter from './routes/quality';
 import patternsRouter from './routes/patterns';
 import suggestionsRouter from './routes/suggestions';
 import experimentsRouter from './routes/experiments';
+import liveLogsRouter from './routes/liveLogs';
 import configGuard from './middleware/configGuard';
 import corsMiddleware from './middleware/cors';
 import { requestLogger, lightRequestLogger } from './middleware/requestLogger';
@@ -175,6 +176,9 @@ app.use('/api/suggestions', suggestionsRouter);
 
 // Experiments routes - A/B testing management (spec 020-self-improving-factory)
 app.use('/api/experiments', experimentsRouter);
+
+// Live logs routes - Factory floor real-time view
+app.use('/api/live', liveLogsRouter);
 
 // Root endpoint - always available
 app.get('/', (req, res) => {

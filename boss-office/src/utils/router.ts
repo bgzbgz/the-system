@@ -22,6 +22,7 @@ const routes: Route[] = [
   { path: '/job/:jobId', pattern: /^\/job\/([^/]+)$/, params: ['jobId'] }, // Job Detail
   { path: '/job/:jobId/logs', pattern: /^\/job\/([^/]+)\/logs$/, params: ['jobId'] }, // AI Logs
   { path: '/metrics', pattern: /^\/metrics$/, params: [] },                // Quality Dashboard
+  { path: '/factory', pattern: /^\/factory$/, params: [] },                // Factory Floor Live View
 
   // Legacy routes (kept for compatibility, redirect in app.ts)
   { path: '/submit', pattern: /^\/submit$/, params: [] },
@@ -96,6 +97,7 @@ export const routes_paths = {
   job: (jobId: string) => `/job/${jobId}`,
   jobLogs: (jobId: string) => `/job/${jobId}/logs`,
   metrics: () => '/metrics',
+  factory: () => '/factory',
 
   // Legacy (kept for compatibility)
   home: () => '/',
