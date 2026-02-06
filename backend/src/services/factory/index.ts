@@ -79,8 +79,9 @@ export class ToolFactory {
    */
   async processRequest(request: FactoryRequest): Promise<FactoryResult> {
     // Validate request
-    if (!this.validateRequest(request)) {
-      return this.createErrorResult(request.jobId, 'secretary', 'Invalid request: jobId and userRequest are required');
+    const validationError = this.validateRequest(request);
+    if (validationError) {
+      return this.createErrorResult(request.jobId, 'secretary', validationError);
     }
 
     // Create pipeline context
@@ -549,27 +550,30 @@ export class ToolFactory {
   /**
    * Validate request has required fields
    */
-  private validateRequest(request: FactoryRequest): boolean {
+  private validateRequest(request: FactoryRequest): string | null {
     if (!request.jobId || typeof request.jobId !== 'string') {
       logValidationError(request.jobId || 'unknown', 'jobId', 'must be a non-empty string');
-      return false;
+      return 'Invalid request: jobId is required';
     }
 
     if (!request.userRequest || typeof request.userRequest !== 'string') {
       logValidationError(request.jobId, 'userRequest', 'must be a non-empty string');
-      return false;
+      return 'Invalid request: userRequest is required';
     }
 
-    // Course content can be up to 100KB, regular requests up to 10KB
+    // Course content can be up to 2MB, regular requests up to 10KB
+    // The Secretary agent handles summarization, so large files are fine
     const isCourseContent = this.detectCourseContent(request.userRequest);
-    const maxLength = isCourseContent ? 100000 : 10000;
+    const maxLength = isCourseContent ? 2000000 : 10000;
 
     if (request.userRequest.length > maxLength) {
-      logValidationError(request.jobId, 'userRequest', `must not exceed ${maxLength.toLocaleString()} characters`);
-      return false;
+      const sizeMB = (request.userRequest.length / 1024 / 1024).toFixed(1);
+      const limitMB = (maxLength / 1024 / 1024).toFixed(1);
+      logValidationError(request.jobId, 'userRequest', `${sizeMB}MB exceeds ${limitMB}MB limit`);
+      return `Content too large (${sizeMB}MB). Maximum ${isCourseContent ? 'course content' : 'request'} size is ${limitMB}MB`;
     }
 
-    return true;
+    return null;
   }
 
   /**
