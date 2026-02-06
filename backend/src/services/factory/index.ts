@@ -84,7 +84,7 @@ export class ToolFactory {
       const originalLen = request.userRequest.length;
       request.userRequest = request.userRequest.replace(/[^\S\n]{2,}/g, ' ');
       if (request.userRequest.length < originalLen) {
-        logger.info(`[Factory] Sanitized content: ${(originalLen / 1024).toFixed(0)}KB → ${(request.userRequest.length / 1024).toFixed(0)}KB`);
+        console.log(`[Factory] Sanitized content: ${(originalLen / 1024).toFixed(0)}KB → ${(request.userRequest.length / 1024).toFixed(0)}KB`);
       }
     }
 
