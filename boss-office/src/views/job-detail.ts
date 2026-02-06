@@ -91,7 +91,7 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
   const pipelineStages = mapJobStatusToPipeline(job.status);
   const progress = calculateProgress(pipelineStages);
   const showActions = ['READY_FOR_REVIEW', 'QA_FAILED', 'ESCALATED'].includes(job.status);
-  const isProcessing = ['PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(job.status);
+  const isProcessing = ['SENT', 'PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(job.status);
 
   container.innerHTML = `
     <div class="view view--job-detail">
@@ -217,7 +217,7 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
         ${isProcessing ? `
           <div class="job-detail__processing-notice">
             <div class="spinner"></div>
-            <span>Processing... This page will update automatically.</span>
+            <span>${job.status === 'SENT' ? 'Waiting for factory to pick up...' : 'Processing...'} This page will update automatically.</span>
             <button class="btn btn--danger btn--small job-detail__cancel-btn" style="margin-left: 16px;">
               CANCEL
             </button>
@@ -631,7 +631,7 @@ function attachJobDetailListeners(container: HTMLElement, job: Job): void {
 function startPolling(jobId: string, currentStatus: JobStatus): void {
   stopPolling();
 
-  const shouldPollFast = ['PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(currentStatus);
+  const shouldPollFast = ['SENT', 'PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(currentStatus);
   const interval = shouldPollFast ? POLL_INTERVAL_ACTIVE : POLL_INTERVAL_IDLE;
 
   // Immediately poll logs if processing
@@ -645,7 +645,7 @@ function startPolling(jobId: string, currentStatus: JobStatus): void {
       setCurrentJob(job);
 
       // Poll logs during processing
-      if (['PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(job.status)) {
+      if (['SENT', 'PROCESSING', 'QA_IN_PROGRESS', 'DEPLOYING'].includes(job.status)) {
         await pollLogs(jobId);
       }
 
@@ -773,6 +773,7 @@ export function stopPolling(): void {
 // Helper functions
 function getStatusClass(status: JobStatus): string {
   const classes: Record<string, string> = {
+    SENT: 'processing',
     PROCESSING: 'processing',
     QA_IN_PROGRESS: 'processing',
     DEPLOYING: 'processing',
@@ -782,6 +783,7 @@ function getStatusClass(status: JobStatus): string {
     DEPLOYED: 'success',
     REJECTED: 'error',
     DEPLOY_FAILED: 'error',
+    FACTORY_FAILED: 'error',
   };
   return classes[status] || 'default';
 }
