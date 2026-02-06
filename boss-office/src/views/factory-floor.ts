@@ -8,7 +8,9 @@ import { getLiveLogs, getActiveJobs, getFactoryStats, LiveLogEntry, ActiveJob, F
 // ========== STATE ==========
 
 let pollInterval: number | null = null;
-const POLL_INTERVAL = 2000; // 2 seconds
+const POLL_INTERVAL = 5000; // 5 seconds (balanced: feels live but avoids rate limits)
+let currentPollInterval = POLL_INTERVAL;
+let consecutiveErrors = 0;
 
 // Pipeline stages for the conveyor belt
 const PIPELINE_STAGES = [
@@ -109,12 +111,14 @@ export async function renderFactoryFloorView(container: HTMLElement): Promise<vo
 
 function startPolling(container: HTMLElement): void {
   // Initial load
+  currentPollInterval = POLL_INTERVAL;
+  consecutiveErrors = 0;
   refreshData(container);
 
   // Poll for updates
   pollInterval = window.setInterval(() => {
     refreshData(container);
-  }, POLL_INTERVAL);
+  }, currentPollInterval);
 }
 
 export function stopPolling(): void {
@@ -132,11 +136,35 @@ async function refreshData(container: HTMLElement): Promise<void> {
       getFactoryStats()
     ]);
 
+    // Success — reset backoff
+    if (consecutiveErrors > 0) {
+      consecutiveErrors = 0;
+      restartPollingWithInterval(container, POLL_INTERVAL);
+    }
+
     updateStats(container, statsResult.stats);
     updateConveyor(container, jobsResult.jobs);
     updateActivityFeed(container, logsResult.logs);
-  } catch (error) {
+  } catch (error: any) {
+    consecutiveErrors++;
     console.error('Factory floor polling error:', error);
+
+    // Back off on rate limit (429) or repeated errors
+    if (error?.status === 429 || consecutiveErrors >= 3) {
+      const backoffInterval = Math.min(POLL_INTERVAL * Math.pow(2, consecutiveErrors), 60000);
+      restartPollingWithInterval(container, backoffInterval);
+    }
+  }
+}
+
+function restartPollingWithInterval(container: HTMLElement, interval: number): void {
+  if (interval === currentPollInterval) return;
+  currentPollInterval = interval;
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = window.setInterval(() => {
+      refreshData(container);
+    }, currentPollInterval);
   }
 }
 

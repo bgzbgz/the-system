@@ -108,7 +108,14 @@ app.use(corsMiddleware);
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting (applied before routes)
-app.use('/api', apiLimiter); // General API limit: 100 req/15min
+// Exempt polling endpoints from rate limiting — they read from in-memory buffers
+// and the Factory Floor polls every 5s with 3 parallel requests
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/live') || req.path === '/health') {
+    return next();
+  }
+  return apiLimiter(req, res, next);
+});
 
 // Request logging (T061 - use light logger for high-volume, full logger for jobs/audit)
 app.use('/api/jobs', requestLogger);
