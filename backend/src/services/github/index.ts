@@ -27,6 +27,10 @@ import { JobStatus, Job } from '../../models/job';
  * Build defaults input from job data after successful deploy
  * Per research.md RT-004: Construct defaults from job data during fullDeploy
  *
+ * Uses job.analysis_result (persisted ContentAnalysisResult) as the source
+ * for course_context and tool_config, since pipeline-only fields like
+ * _courseContext and toolSpec are NOT persisted to the database.
+ *
  * @param job - Job with tool data
  * @param deployResult - Successful deploy result
  * @returns ToolDefaultInsert for Supabase
@@ -46,53 +50,57 @@ export function buildDefaultsFromJob(
   const toolName = job.tool_name || 'Unnamed Tool';
   const githubUrl = deployResult.pagesUrl || deployResult.repoUrl || '';
 
-  // Build course_context from job._courseContext if available
-  let courseContext: Record<string, unknown> = {};
-  const jobContext = (job as Job & { _courseContext?: Record<string, unknown> })._courseContext;
+  const courseContext: Record<string, unknown> = {};
+  const toolConfig: Record<string, unknown> = {};
 
-  if (jobContext) {
-    const deepContent = jobContext.deepContent as Record<string, unknown> | undefined;
-
-    courseContext = {};
-
+  // Build from analysis_result (persisted to DB from AI-first analysis flow)
+  const analysis = job.analysis_result;
+  if (analysis) {
     // Map terminology
-    if (deepContent?.keyTerminology) {
-      const terms = deepContent.keyTerminology as Array<{ term: string; definition: string }>;
-      courseContext.terminology = terms.map(t => ({
+    if (analysis.terminology && analysis.terminology.length > 0) {
+      courseContext.terminology = analysis.terminology.map(t => ({
         term: t.term,
         definition: t.definition
       }));
     }
 
-    // Map numbered framework
-    if (deepContent?.numberedFramework) {
-      const fw = deepContent.numberedFramework as { frameworkName: string; items: unknown[] };
+    // Map framework
+    if (analysis.framework) {
       courseContext.frameworks = [{
-        name: fw.frameworkName,
-        description: `Framework with ${fw.items?.length || 0} items`
+        name: analysis.framework.name,
+        items: analysis.framework.items,
+        description: `Framework with ${analysis.framework.items?.length || 0} items`
       }];
     }
 
     // Map expert quotes
-    if (deepContent?.expertWisdom) {
-      const quotes = deepContent.expertWisdom as Array<{ quote: string; source: string }>;
-      courseContext.expertQuotes = quotes.map(q => ({
+    if (analysis.expertQuotes && analysis.expertQuotes.length > 0) {
+      courseContext.expertQuotes = analysis.expertQuotes.map(q => ({
         quote: q.quote,
         source: q.source
       }));
     }
 
-    // Map input ranges
-    if (deepContent?.inputRanges) {
-      courseContext.inputRanges = deepContent.inputRanges as CourseContext['inputRanges'];
+    // Map verdict criteria
+    if (analysis.goCondition || analysis.noGoCondition) {
+      courseContext.verdictCriteria = {
+        go: analysis.goCondition,
+        noGo: analysis.noGoCondition
+      };
     }
-  }
 
-  // Build tool_config from toolSpec if available
-  const toolConfig: Record<string, unknown> = {};
-  const toolSpec = (job as Job & { toolSpec?: { inputs?: Array<{ name: string; label: string; type?: string; required?: boolean }> } }).toolSpec;
-  if (toolSpec?.inputs) {
-    toolConfig.inputs = toolSpec.inputs;
+    // Build tool_config from suggested inputs
+    if (analysis.suggestedInputs && analysis.suggestedInputs.length > 0) {
+      toolConfig.inputs = analysis.suggestedInputs;
+    }
+
+    // Store decision info
+    if (analysis.decisionType) {
+      toolConfig.decisionType = analysis.decisionType;
+    }
+    if (analysis.suggestedToolName) {
+      toolConfig.suggestedToolName = analysis.suggestedToolName;
+    }
   }
 
   return {

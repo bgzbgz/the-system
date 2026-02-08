@@ -35,7 +35,8 @@ export async function getToolDefault(toolSlug: string): Promise<ToolDefault | nu
 }
 
 /**
- * Create tool configuration (on deployment)
+ * Create or update tool configuration (on deployment)
+ * Uses upsert on tool_slug + tenant_id to handle re-deploys
  */
 export async function createToolDefault(toolDefault: ToolDefaultInsert): Promise<ToolDefault> {
   const supabase = getSupabase();
@@ -43,12 +44,15 @@ export async function createToolDefault(toolDefault: ToolDefaultInsert): Promise
 
   const { data, error } = await supabase
     .from('tool_defaults')
-    .insert({ ...toolDefault, tenant_id: tenantId })
+    .upsert(
+      { ...toolDefault, tenant_id: tenantId },
+      { onConflict: 'tenant_id,tool_slug' }
+    )
     .select()
     .single();
 
   if (error) {
-    throw new Error(`Failed to create tool default: ${error.message}`);
+    throw new Error(`Failed to upsert tool default: ${error.message}`);
   }
 
   return data;

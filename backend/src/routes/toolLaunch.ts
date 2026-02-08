@@ -14,6 +14,7 @@ import {
   getToolVisits
 } from '../services/learnworlds';
 import { isLearnWorldsConfigured } from '../config/learnworlds';
+import { getToolDefault } from '../db/supabase/services/toolDefaultService';
 
 const router = Router();
 
@@ -80,32 +81,47 @@ router.get('/launch/:toolSlug', async (req: Request, res: Response) => {
 
     console.log(`[Tool Launch] ✓ Verified: ${user.email} accessing ${toolSlug}`);
 
-    // If redirect URL provided, redirect there with user info
+    // Build user params to append to tool URL
+    const userParams = new URLSearchParams();
+    userParams.set('user_id', user.id);
+    userParams.set('email', user.email);
+    const userName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username;
+    if (userName) userParams.set('name', userName);
+    if (user.fields?.company) userParams.set('company', user.fields.company);
+    if (course) userParams.set('course', course as string);
+
+    // If explicit redirect URL provided, use it
     if (redirect) {
       const redirectUrl = new URL(redirect as string);
-      redirectUrl.searchParams.set('verified', 'true');
-      redirectUrl.searchParams.set('user_id', user.id);
-      redirectUrl.searchParams.set('email', user.email);
-      if (user.first_name) redirectUrl.searchParams.set('first_name', user.first_name);
-      if (user.last_name) redirectUrl.searchParams.set('last_name', user.last_name);
-      if (user.fields?.company) redirectUrl.searchParams.set('company', user.fields.company);
-
+      userParams.forEach((val, key) => redirectUrl.searchParams.set(key, val));
       return res.redirect(redirectUrl.toString());
     }
 
-    // Otherwise return JSON response with user info and tool access
+    // Auto-redirect: look up tool's deployed URL from tool_defaults
+    try {
+      const toolDefault = await getToolDefault(toolSlug);
+      if (toolDefault?.github_url) {
+        const toolUrl = new URL(toolDefault.github_url);
+        userParams.forEach((val, key) => toolUrl.searchParams.set(key, val));
+        console.log(`[Tool Launch] Redirecting to: ${toolUrl.toString()}`);
+        return res.redirect(toolUrl.toString());
+      }
+    } catch (lookupErr) {
+      console.warn(`[Tool Launch] Could not look up deployed URL for ${toolSlug}:`, lookupErr);
+    }
+
+    // Fallback: return JSON if no deployed URL found (or ?format=json)
     res.json({
       success: true,
       message: 'User verified successfully',
       tool: {
         slug: toolSlug,
-        // Tool URL will be constructed by frontend or returned here
         url: `/tools/${toolSlug}`
       },
       user: {
         id: user.id,
         email: user.email,
-        name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username,
+        name: userName,
         company: user.fields?.company,
         tags: user.tags
       },

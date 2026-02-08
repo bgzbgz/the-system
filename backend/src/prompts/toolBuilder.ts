@@ -159,6 +159,18 @@ The template below is the ONLY correct pattern. Deviate and the tool WILL break.
         var API_BASE = 'https://the-system-production.up.railway.app';
         var TOOL_SLUG = 'REPLACE_WITH_SLUG';
 
+        /* === USER IDENTITY FROM URL PARAMS (DO NOT MODIFY) === */
+        var _urlParams = new URLSearchParams(window.location.search);
+        var _userIdentity = {
+            userName: _urlParams.get('name') || _urlParams.get('first_name') || null,
+            userEmail: _urlParams.get('email') || null,
+            learnworldsUserId: _urlParams.get('user_id') || _urlParams.get('lw_user') || null,
+            company: _urlParams.get('company') || null,
+            source: _urlParams.get('email') ? 'learnworlds' : 'direct',
+            courseId: _urlParams.get('course') || null
+        };
+        /* === END USER IDENTITY === */
+
         /* ADD YOUR TOOL LOGIC HERE: calculateResults(), saveResults(), validation, etc. */
     </script>
 </body>
@@ -213,8 +225,20 @@ When toolSpec includes "_builderContext", use this course content:
 </builder_context>
 
 <api_integration>
-saveResults() should POST to: API_BASE + '/api/tools/' + TOOL_SLUG + '/responses'
-Payload: { inputs: {...}, result: { verdict, score }, learnworldsUserId: new URLSearchParams(window.location.search).get('lw_user_id') }
+saveResults() MUST POST to: API_BASE + '/api/tools/' + TOOL_SLUG + '/responses'
+
+The payload MUST include _userIdentity fields (already parsed from URL params above):
+{
+  inputs: { /* all input values */ },
+  result: { verdict: 'GO'/'NO-GO', /* scores, findings */ },
+  userName: _userIdentity.userName,
+  userEmail: _userIdentity.userEmail,
+  learnworldsUserId: _userIdentity.learnworldsUserId,
+  source: _userIdentity.source,
+  courseId: _userIdentity.courseId
+}
+
+IMPORTANT: Always include the _userIdentity fields. They are null for direct access and populated when launched from LearnWorlds.
 </api_integration>
 
 <quality_checklist>
