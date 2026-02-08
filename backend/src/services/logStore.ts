@@ -2,18 +2,19 @@
  * Log Store Service
  * Spec: 024-agent-reasoning-logs
  *
- * MongoDB-based storage for AI agent reasoning logs.
+ * Supabase-based storage for AI agent reasoning logs.
  * Fire-and-forget pattern ensures logging never blocks tool generation.
+ *
+ * NOTE: Previously used MongoDB but MongoDB is not configured in production.
+ * Migrated to Supabase agent_logs table for reliable persistence.
  */
 
-import { Collection } from 'mongodb';
-import { getDB, isConnected } from '../db/connection';
+import { getSupabase, isSupabaseConfigured } from '../db/supabase/client';
 import {
   AgentLogEntry,
   CreateLogInput,
   AgentStage,
   AIProvider,
-  AGENT_LOGS_COLLECTION
 } from '../models/agentLog';
 
 // ========== CONSTANTS ==========
@@ -40,44 +41,13 @@ function truncateField(text: string): { value: string; truncated: boolean } {
   };
 }
 
-/**
- * Get the agent_logs collection
- */
-function getCollection(): Collection<AgentLogEntry> {
-  return getDB().collection<AgentLogEntry>(AGENT_LOGS_COLLECTION);
-}
-
 // ========== INDEX MANAGEMENT ==========
 
 /**
- * Create indexes for agent_logs collection
- * Per spec FR-001: job_id index and TTL index on createdAt
- * Per spec US4: TTL configurable via LOG_TTL_DAYS
+ * Ensure indexes exist (no-op for Supabase — indexes created via migration)
  */
 export async function ensureIndexes(): Promise<void> {
-  if (!isConnected()) {
-    console.log('[LogStore] MongoDB not connected - skipping index creation');
-    return;
-  }
-
-  try {
-    const collection = getCollection();
-
-    // Job ID index for queries (spec FR-001)
-    await collection.createIndex({ job_id: 1 });
-
-    // TTL index for automatic cleanup (spec US4)
-    const ttlSeconds = TTL_DAYS * 24 * 60 * 60;
-    await collection.createIndex(
-      { createdAt: 1 },
-      { expireAfterSeconds: ttlSeconds }
-    );
-
-    console.log(`[LogStore] Indexes ensured (TTL: ${TTL_DAYS} days)`);
-  } catch (error) {
-    // Don't throw - log store should not break server startup
-    console.error('[LogStore] Failed to create indexes:', error);
-  }
+  console.log('[LogStore] Using Supabase agent_logs table (indexes managed by migration)');
 }
 
 // ========== SUMMARY GENERATION ==========
@@ -96,6 +66,9 @@ export function generateSummary(
 
   const templates: Record<string, string> = {
     'secretary': `Validated input and created brief using ${providerName}. Used ${tokens.output.toLocaleString()} tokens.`,
+    'content-summarizer': `Summarized course content using ${providerName}. Used ${tokens.output.toLocaleString()} tokens.`,
+    'course-analyst': `Analyzed course structure using ${providerName}. Used ${tokens.output.toLocaleString()} tokens.`,
+    'knowledge-architect': `Designed tool spec using ${providerName}. Used ${tokens.output.toLocaleString()} tokens.`,
     'tool-build': `Built tool HTML using ${providerName}. Generated ${responseLength.toLocaleString()} characters.`,
     'template-select': `Selected HTML template using ${providerName}. Used ${tokens.output.toLocaleString()} tokens.`,
     'qa-eval': `Evaluated tool quality using ${providerName}. Used ${tokens.output.toLocaleString()} tokens.`,
@@ -109,16 +82,15 @@ export function generateSummary(
 // ========== CORE OPERATIONS ==========
 
 /**
- * Create a log entry in MongoDB
+ * Create a log entry in Supabase agent_logs table
  * Per spec FR-002, FR-003: Fire-and-forget with error handling
  *
  * IMPORTANT: Call without await for fire-and-forget pattern
  * Example: createLog(entry).catch(err => console.error(err));
  */
 export async function createLog(entry: CreateLogInput): Promise<void> {
-  // Check MongoDB connection first
-  if (!isConnected()) {
-    console.warn('[LogStore] MongoDB not connected - log entry skipped');
+  if (!isSupabaseConfigured()) {
+    console.warn('[LogStore] Supabase not configured - log entry skipped');
     return;
   }
 
@@ -127,38 +99,57 @@ export async function createLog(entry: CreateLogInput): Promise<void> {
     const prompt = truncateField(entry.prompt);
     const response = truncateField(entry.response);
 
-    const doc: AgentLogEntry = {
-      ...entry,
+    const row = {
+      job_id: entry.job_id,
+      stage: entry.stage,
+      provider: entry.provider,
+      model: entry.model,
       prompt: prompt.value,
       response: response.value,
       prompt_truncated: prompt.truncated,
       response_truncated: response.truncated,
-      createdAt: new Date()
+      input_tokens: entry.input_tokens,
+      output_tokens: entry.output_tokens,
+      duration_ms: entry.duration_ms,
+      summary: entry.summary || '',
+      metadata: entry.metadata || null,
     };
 
-    await getCollection().insertOne(doc);
+    const { error } = await getSupabase()
+      .from('agent_logs')
+      .insert(row);
+
+    if (error) {
+      console.error('[LogStore] Failed to create log:', error.message);
+    }
   } catch (error) {
     // Per spec NFR-003: Log failures must not break tool generation
-    // All errors caught and logged to console
     console.error('[LogStore] Failed to create log:', error);
-    // Don't throw - fire and forget
   }
 }
 
 /**
  * Get all logs for a job, sorted by timestamp
- * Per spec FR-002, US2: getLogsByJobId sorted by createdAt
+ * Per spec FR-002, US2: getLogsByJobId sorted by created_at
  */
 export async function getLogsByJobId(jobId: string): Promise<AgentLogEntry[]> {
-  if (!isConnected()) {
+  if (!isSupabaseConfigured()) {
     return [];
   }
 
   try {
-    return await getCollection()
-      .find({ job_id: jobId })
-      .sort({ createdAt: 1 })
-      .toArray();
+    const { data, error } = await getSupabase()
+      .from('agent_logs')
+      .select('*')
+      .eq('job_id', jobId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[LogStore] Failed to get logs by job ID:', error.message);
+      return [];
+    }
+
+    return (data || []).map(mapRowToEntry);
   } catch (error) {
     console.error('[LogStore] Failed to get logs by job ID:', error);
     return [];
@@ -170,19 +161,51 @@ export async function getLogsByJobId(jobId: string): Promise<AgentLogEntry[]> {
  * Per spec FR-002: getLogsByStage for optional filtering
  */
 export async function getLogsByStage(jobId: string, stage: AgentStage): Promise<AgentLogEntry[]> {
-  if (!isConnected()) {
+  if (!isSupabaseConfigured()) {
     return [];
   }
 
   try {
-    return await getCollection()
-      .find({ job_id: jobId, stage })
-      .sort({ createdAt: 1 })
-      .toArray();
+    const { data, error } = await getSupabase()
+      .from('agent_logs')
+      .select('*')
+      .eq('job_id', jobId)
+      .eq('stage', stage)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[LogStore] Failed to get logs by stage:', error.message);
+      return [];
+    }
+
+    return (data || []).map(mapRowToEntry);
   } catch (error) {
     console.error('[LogStore] Failed to get logs by stage:', error);
     return [];
   }
+}
+
+/**
+ * Map Supabase row to AgentLogEntry format (for API compatibility)
+ */
+function mapRowToEntry(row: any): AgentLogEntry {
+  return {
+    _id: row.id,
+    job_id: row.job_id,
+    stage: row.stage,
+    provider: row.provider,
+    model: row.model,
+    prompt: row.prompt,
+    response: row.response,
+    prompt_truncated: row.prompt_truncated,
+    response_truncated: row.response_truncated,
+    input_tokens: row.input_tokens,
+    output_tokens: row.output_tokens,
+    duration_ms: row.duration_ms,
+    summary: row.summary,
+    createdAt: new Date(row.created_at),
+    metadata: row.metadata,
+  };
 }
 
 // ========== EXPORTS ==========
