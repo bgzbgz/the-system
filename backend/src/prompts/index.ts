@@ -20,7 +20,6 @@ import { knowledgeArchitectPrompt } from './knowledgeArchitect';
 import { contentSummarizerPrompt } from './contentSummarizer';
 // Pre-submission context agents
 import { contextInterviewerPrompt } from './contextInterviewer';
-import { audienceProfilerPrompt } from './audienceProfiler';
 import { exampleGeneratorPrompt } from './exampleGenerator';
 // Quality enhancement agents
 import { copyWriterPrompt } from './copyWriter';
@@ -47,7 +46,6 @@ export const prompts: Record<AgentName, AgentPrompt> = {
   contentSummarizer: contentSummarizerPrompt,
   // Pre-submission context agents
   contextInterviewer: contextInterviewerPrompt,
-  audienceProfiler: audienceProfilerPrompt,
   exampleGenerator: exampleGeneratorPrompt,
   // Quality enhancement agents
   copyWriter: copyWriterPrompt,
@@ -99,7 +97,6 @@ export {
   contentSummarizerPrompt,
   // Pre-submission context agents
   contextInterviewerPrompt,
-  audienceProfilerPrompt,
   exampleGeneratorPrompt,
   // Quality enhancement agents
   copyWriterPrompt,

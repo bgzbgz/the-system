@@ -10,8 +10,7 @@ import { toolBuilderStage } from './toolBuilder';
 import { templateDeciderStage } from './templateDecider';
 import { qaDepartmentStage } from './qaDepartment';
 import { feedbackApplierStage } from './feedbackApplier';
-// New enhanced stages
-import { audienceProfilerStage } from './audienceProfiler';
+// Enhanced stages
 import { exampleGeneratorStage } from './exampleGenerator';
 import { copyWriterStage } from './copyWriter';
 import { brandGuardianStage } from './brandGuardian';
@@ -26,8 +25,7 @@ export const stages: Partial<Record<StageName, Stage>> = {
   templateDecider: templateDeciderStage,
   qaDepartment: qaDepartmentStage,
   feedbackApplier: feedbackApplierStage,
-  // New enhanced stages
-  audienceProfiler: audienceProfilerStage,
+  // Enhanced stages
   exampleGenerator: exampleGeneratorStage,
   copyWriter: copyWriterStage,
   brandGuardian: brandGuardianStage
@@ -62,8 +60,7 @@ export {
   templateDeciderStage,
   qaDepartmentStage,
   feedbackApplierStage,
-  // New enhanced stages
-  audienceProfilerStage,
+  // Enhanced stages
   exampleGeneratorStage,
   copyWriterStage,
   brandGuardianStage

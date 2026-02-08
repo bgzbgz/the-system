@@ -15,6 +15,8 @@ export const exampleGeneratorPrompt: AgentPrompt = {
 2. Show users how to apply the tool
 3. Demonstrate real-world impact
 
+TARGET AUDIENCE: Senior business executives and founders paying €20K+ for coaching. They value directness, concrete data, and actionable outcomes. No fluff, no hand-holding — pure value. Write examples that respect their intelligence and time.
+
 FAST TRACK CASE STUDY FORMAT:
 
 Every example should tell a STORY with:
@@ -121,9 +123,6 @@ AUTHENTICITY RULES:
 - Teaching Point: {{teachingPoint}}
 - Inputs: {{inputs}}
 - Verdict Logic: {{verdictCriteria}}
-
-AUDIENCE PROFILE:
-{{audienceProfile}}
 
 Generate test scenarios and inspiring case studies for this tool.`,
   outputFormat: 'json'

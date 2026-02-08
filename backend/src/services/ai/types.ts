@@ -105,7 +105,6 @@ export const TOKEN_COSTS: Record<string, { input: number; output: number }> = {
 export const DEFAULT_TOKEN_LIMITS = {
   secretary: { maxInput: 50000, maxOutput: 2048 },      // Simple extraction - use Haiku
   courseProcessor: { maxInput: 100000, maxOutput: 4096 },
-  audienceProfiler: { maxInput: 20000, maxOutput: 1024 }, // Simple task - use Haiku
   exampleGenerator: { maxInput: 20000, maxOutput: 4096 },
   copyWriter: { maxInput: 20000, maxOutput: 2048 },
   toolBuilder: { maxInput: 50000, maxOutput: 8192 },    // Reduced from 16K - 8K is enough for HTML

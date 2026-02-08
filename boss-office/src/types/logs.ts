@@ -19,7 +19,6 @@ export type AgentStage =
   | 'qa-eval'
   | 'feedback-apply'
   | 'revision'
-  | 'audience-profile'
   | 'brand-audit'
   | 'copy-write'
   | 'example-gen'
@@ -42,15 +41,14 @@ export const STAGE_CONFIG: Record<AgentStage, StageConfig> = {
   'content-summarizer':  { displayName: 'CONTENT SUMMARIZER',  icon: '02', order: 2 },
   'course-analyst':      { displayName: 'COURSE ANALYST',      icon: '03', order: 3 },
   'knowledge-architect': { displayName: 'KNOWLEDGE ARCHITECT', icon: '04', order: 4 },
-  'audience-profile':    { displayName: 'AUDIENCE PROFILER',   icon: '05', order: 5 },
-  'example-gen':         { displayName: 'EXAMPLE GENERATOR',   icon: '06', order: 6 },
-  'copy-write':          { displayName: 'COPY WRITER',         icon: '07', order: 7 },
-  'template-select':     { displayName: 'TEMPLATE DECIDER',    icon: '08', order: 8 },
-  'tool-build':          { displayName: 'TOOL BUILDER',        icon: '09', order: 9 },
-  'brand-audit':         { displayName: 'BRAND GUARDIAN',      icon: '10', order: 10 },
-  'qa-eval':             { displayName: 'QA DEPARTMENT',       icon: '11', order: 11 },
-  'feedback-apply':      { displayName: 'FEEDBACK APPLIER',    icon: '12', order: 12 },
-  'revision':            { displayName: 'REVISION',            icon: '13', order: 13 },
+  'example-gen':         { displayName: 'EXAMPLE GENERATOR',   icon: '05', order: 5 },
+  'copy-write':          { displayName: 'COPY WRITER',         icon: '06', order: 6 },
+  'template-select':     { displayName: 'TEMPLATE DECIDER',    icon: '07', order: 7 },
+  'tool-build':          { displayName: 'TOOL BUILDER',        icon: '08', order: 8 },
+  'brand-audit':         { displayName: 'BRAND GUARDIAN',      icon: '09', order: 9 },
+  'qa-eval':             { displayName: 'QA DEPARTMENT',       icon: '10', order: 10 },
+  'feedback-apply':      { displayName: 'FEEDBACK APPLIER',    icon: '11', order: 11 },
+  'revision':            { displayName: 'REVISION',            icon: '12', order: 12 },
   'unknown':             { displayName: 'UNKNOWN',             icon: '??', order: 99 }
 };
 

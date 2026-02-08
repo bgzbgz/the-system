@@ -26,9 +26,7 @@ import {
   FeedbackApplierOutput,
   ToolSpec,
   TemplateType,
-  // New enhanced stage types
-  AudienceProfilerInput,
-  AudienceProfilerOutput,
+  // Enhanced stage types
   ExampleGeneratorInput,
   ExampleGeneratorOutput,
   CopyWriterInput,
@@ -201,29 +199,21 @@ export class ToolFactory {
       toolSpec = secretaryOutput.toolSpec!;
     }
 
-    // ========== NEW ENHANCED STAGES ==========
+    // ========== ENHANCED STAGES ==========
 
-    // Stage 2: Audience Profiler - Understand target user
-    console.log(`[Factory] Running Audience Profiler for job ${request.jobId}`);
-    const audienceOutput = await this.executeStage<AudienceProfilerInput, AudienceProfilerOutput>(
-      'audienceProfiler',
-      { toolSpec, contentSummary: request.userRequest.substring(0, 2000) },
-      context
-    );
-
-    // Stage 3: Example Generator - Create case studies
+    // Stage 2: Example Generator - Create case studies
     console.log(`[Factory] Running Example Generator for job ${request.jobId}`);
     const examplesOutput = await this.executeStage<ExampleGeneratorInput, ExampleGeneratorOutput>(
       'exampleGenerator',
-      { toolSpec, audienceProfile: audienceOutput.profile },
+      { toolSpec },
       context
     );
 
-    // Stage 4: Copy Writer - Generate microcopy
+    // Stage 3: Copy Writer - Generate microcopy
     console.log(`[Factory] Running Copy Writer for job ${request.jobId}`);
     const copyOutput = await this.executeStage<CopyWriterInput, CopyWriterOutput>(
       'copyWriter',
-      { toolSpec, audienceProfile: audienceOutput.profile },
+      { toolSpec },
       context
     );
 
@@ -231,7 +221,6 @@ export class ToolFactory {
     const enhancedSpec = {
       ...toolSpec,
       _enhancedContext: {
-        audienceProfile: audienceOutput.profile,
         caseStudies: examplesOutput.caseStudies,
         testScenarios: examplesOutput.testScenarios,
         copy: copyOutput.copy

@@ -16,7 +16,6 @@ const STAGE_DISPLAY_NAMES: Record<string, string> = {
   contentSummarizer: 'Content Summarizer',
   courseAnalyst: 'Course Analyst',
   knowledgeArchitect: 'Knowledge Architect',
-  audienceProfiler: 'Audience Profiler',
   exampleGenerator: 'Example Generator',
   copyWriter: 'Copy Writer',
   templateDecider: 'Template Decider',

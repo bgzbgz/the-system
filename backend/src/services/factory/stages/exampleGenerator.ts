@@ -30,9 +30,6 @@ export const exampleGeneratorStage: Stage<ExampleGeneratorInput, ExampleGenerato
 - Inputs: ${input.toolSpec.inputs.map(i => `${i.label} (${i.type})`).join(', ')}
 - Processing Logic: ${input.toolSpec.processingLogic}
 
-AUDIENCE PROFILE:
-${JSON.stringify(input.audienceProfile, null, 2)}
-
 Generate test scenarios and inspiring case studies for this tool.`;
 
     // Call Claude Haiku for example generation (cost optimized)

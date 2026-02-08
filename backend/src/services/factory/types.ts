@@ -29,7 +29,6 @@ export type StageName =
   | 'feedbackApplier'
   // Pre-submission context stages
   | 'contextInterviewer'
-  | 'audienceProfiler'
   | 'exampleGenerator'
   // Quality enhancement stages
   | 'copyWriter'
@@ -183,54 +182,11 @@ export interface FeedbackApplierInput {
 }
 
 /**
- * Input for Audience Profiler stage
- */
-export interface AudienceProfilerInput {
-  /** Tool specification */
-  toolSpec: ToolSpec;
-  /** Summary of the content */
-  contentSummary: string;
-}
-
-/**
- * Output from Audience Profiler stage
- */
-export interface AudienceProfilerOutput {
-  /** Detailed audience profile */
-  profile: {
-    primaryPersona: {
-      name: string;
-      businessStage: string;
-      decisionStyle: string;
-      timePressure: string;
-      technicalComfort: string;
-      emotionalState: string;
-      quote: string;
-    };
-    languageGuidelines: {
-      tone: string;
-      complexity: string;
-      jargonLevel: string;
-      examplesStyle: string;
-    };
-    uxRecommendations: {
-      inputStyle: string;
-      resultFormat: string;
-      commitmentLevel: string;
-      helpTextDensity: string;
-    };
-    redFlags: string[];
-  };
-}
-
-/**
  * Input for Example Generator stage
  */
 export interface ExampleGeneratorInput {
   /** Tool specification */
   toolSpec: ToolSpec;
-  /** Audience profile */
-  audienceProfile: AudienceProfilerOutput['profile'];
 }
 
 /**
@@ -279,8 +235,6 @@ export interface ExampleGeneratorOutput {
 export interface CopyWriterInput {
   /** Tool specification */
   toolSpec: ToolSpec;
-  /** Audience profile */
-  audienceProfile: AudienceProfilerOutput['profile'];
 }
 
 /**
@@ -364,7 +318,6 @@ export type StageInput =
   | TemplateDeciderInput
   | QAInput
   | FeedbackApplierInput
-  | AudienceProfilerInput
   | ExampleGeneratorInput
   | CopyWriterInput
   | BrandGuardianInput;
@@ -424,7 +377,6 @@ export type StageOutput =
   | TemplateDeciderOutput
   | QAOutput
   | FeedbackApplierOutput
-  | AudienceProfilerOutput
   | ExampleGeneratorOutput
   | CopyWriterOutput
   | BrandGuardianOutput;

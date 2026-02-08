@@ -242,9 +242,8 @@ export type AgentName =
   | 'courseAnalyst'
   | 'knowledgeArchitect'
   | 'contentSummarizer'
-  // New pre-submission agents
+  // Pre-submission agents
   | 'contextInterviewer'
-  | 'audienceProfiler'
   | 'exampleGenerator'
   // New quality enhancement agents
   | 'copyWriter'

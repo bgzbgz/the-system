@@ -30,9 +30,6 @@ export const copyWriterStage: Stage<CopyWriterInput, CopyWriterOutput> = {
 - Inputs: ${input.toolSpec.inputs.map(i => `${i.name}: ${i.label} (${i.type}${i.required ? ', required' : ''})`).join('\n')}
 - Processing Logic: ${input.toolSpec.processingLogic}
 
-AUDIENCE PROFILE:
-${JSON.stringify(input.audienceProfile, null, 2)}
-
 Write all microcopy for this tool in Fast Track voice.`;
 
     // Call Claude Haiku for copy writing (cost optimized)
