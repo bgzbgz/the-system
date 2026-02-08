@@ -9,7 +9,7 @@
  * Migrated to Supabase agent_logs table for reliable persistence.
  */
 
-import { getSupabase, isSupabaseConfigured } from '../db/supabase/client';
+import { getSupabase, isSupabaseConfigured, DEFAULT_TENANT_ID } from '../db/supabase/client';
 import {
   AgentLogEntry,
   CreateLogInput,
@@ -100,6 +100,7 @@ export async function createLog(entry: CreateLogInput): Promise<void> {
     const response = truncateField(entry.response);
 
     const row = {
+      tenant_id: DEFAULT_TENANT_ID,
       job_id: entry.job_id,
       stage: entry.stage,
       provider: entry.provider,
@@ -108,8 +109,8 @@ export async function createLog(entry: CreateLogInput): Promise<void> {
       response: response.value,
       prompt_truncated: prompt.truncated,
       response_truncated: response.truncated,
-      input_tokens: entry.input_tokens,
-      output_tokens: entry.output_tokens,
+      tokens_input: entry.input_tokens,
+      tokens_output: entry.output_tokens,
       duration_ms: entry.duration_ms,
       summary: entry.summary || '',
       metadata: entry.metadata || null,
@@ -199,8 +200,8 @@ function mapRowToEntry(row: any): AgentLogEntry {
     response: row.response,
     prompt_truncated: row.prompt_truncated,
     response_truncated: row.response_truncated,
-    input_tokens: row.input_tokens,
-    output_tokens: row.output_tokens,
+    input_tokens: row.tokens_input,
+    output_tokens: row.tokens_output,
     duration_ms: row.duration_ms,
     summary: row.summary,
     createdAt: new Date(row.created_at),
