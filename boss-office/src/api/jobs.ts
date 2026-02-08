@@ -368,6 +368,8 @@ export interface ContentAnalysisResult {
  * User edits to AI analysis
  */
 export interface AnalysisEdits {
+  suggestedToolName?: string;
+  toolPurpose?: string;
   coreInsight?: string;
   decisionType?: ContentAnalysisResult['decisionType'];
   decisionQuestion?: string;

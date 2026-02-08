@@ -96,6 +96,8 @@ export interface AnalyzerResult {
  * User's edits to the AI's understanding
  */
 export interface AnalysisEdits {
+  suggestedToolName?: string;
+  toolPurpose?: string;
   coreInsight?: string;
   decisionType?: ContentAnalysisResult['decisionType'];
   decisionQuestion?: string;
@@ -317,6 +319,8 @@ Extract the key information needed to build a decision-making tool from this con
   applyEdits(original: ContentAnalysisResult, edits: AnalysisEdits): ContentAnalysisResult {
     return {
       ...original,
+      ...(edits.suggestedToolName && { suggestedToolName: edits.suggestedToolName }),
+      ...(edits.toolPurpose && { toolPurpose: edits.toolPurpose }),
       ...(edits.coreInsight && { coreInsight: edits.coreInsight }),
       ...(edits.decisionType && { decisionType: edits.decisionType }),
       ...(edits.decisionQuestion && { decisionQuestion: edits.decisionQuestion }),

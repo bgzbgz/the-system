@@ -416,11 +416,14 @@ function generateStageInsights(logs: FactoryLog[]): Array<{
     'content-summarizer': { name: 'Content Summarizer', order: 2 },
     'course-analyst': { name: 'Course Analyst', order: 3 },
     'knowledge-architect': { name: 'Knowledge Architect', order: 4 },
-    'tool-build': { name: 'Tool Builder', order: 5 },
-    'template-select': { name: 'Template Selection', order: 6 },
-    'qa-eval': { name: 'QA Evaluation', order: 7 },
-    'brand-guardian': { name: 'Brand Guardian', order: 8 },
-    'feedback-apply': { name: 'Feedback Applied', order: 9 },
+    'audience-profile': { name: 'Audience Profiler', order: 5 },
+    'example-gen': { name: 'Example Generator', order: 6 },
+    'copy-write': { name: 'Copy Writer', order: 7 },
+    'template-select': { name: 'Template Selection', order: 8 },
+    'tool-build': { name: 'Tool Builder', order: 9 },
+    'brand-audit': { name: 'Brand Guardian', order: 10 },
+    'qa-eval': { name: 'QA Evaluation', order: 11 },
+    'feedback-apply': { name: 'Feedback Applied', order: 12 },
   };
 
   // Group logs by stage
@@ -489,6 +492,17 @@ function extractKeyDecisions(response: string, stage: string): string[] {
     const passMatch = response.match(/passed|failed/i);
     if (passMatch) {
       decisions.push(`QA Result: ${passMatch[0].toUpperCase()}`);
+    }
+  }
+
+  if (stage === 'content-summarizer') {
+    decisions.push('Condensed course content for analysis');
+  }
+
+  if (stage === 'course-analyst') {
+    const frameworkMatch = response.match(/framework[:\s]+"?([^"]+)"?/i);
+    if (frameworkMatch) {
+      decisions.push(`Found framework: ${frameworkMatch[1].substring(0, 50)}`);
     }
   }
 
@@ -719,6 +733,9 @@ async function pollLogs(jobId: string): Promise<void> {
     // Group logs by stage and show latest from each
     const stageNames: Record<string, string> = {
       'secretary': 'Secretary',
+      'content-summarizer': 'Content Summarizer',
+      'course-analyst': 'Course Analyst',
+      'knowledge-architect': 'Knowledge Architect',
       'audience-profile': 'Audience Profiler',
       'example-gen': 'Example Generator',
       'copy-write': 'Copy Writer',
@@ -759,6 +776,9 @@ async function pollLogs(jobId: string): Promise<void> {
 function updatePipelineFromLogs(logs: FactoryLog[]): void {
   const stageMap: Record<string, string> = {
     'secretary': 'sec',
+    'content-summarizer': 'sec',
+    'course-analyst': 'sec',
+    'knowledge-architect': 'sec',
     'audience-profile': 'aud',
     'example-gen': 'exm',
     'copy-write': 'cpy',

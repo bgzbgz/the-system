@@ -77,6 +77,11 @@ The template below is the ONLY correct pattern. Deviate and the tool WILL break.
         .save-btn { background: #FFF469; color: #000; border: 2px solid #000; padding: 16px 48px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: 'Plaak', Arial, sans-serif; }
         .privacy-notice { color: #B2B2B2; font-size: 12px; margin-top: 12px; }
 
+        .case-study { text-align: left; margin: 24px 0; }
+        .case-study__section { margin-bottom: 20px; }
+        .case-study__label { font-family: 'Monument', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #FFF469; display: block; margin-bottom: 6px; }
+        .case-study__section p { color: #B2B2B2; font-size: 15px; line-height: 1.6; }
+
         /* ADD YOUR ADDITIONAL STYLES HERE (results tables, specific layouts, etc.) */
     </style>
 </head>
@@ -86,6 +91,7 @@ The template below is the ONLY correct pattern. Deviate and the tool WILL break.
 
         <!-- SLIDE 0: WELCOME (must have class="slide active") -->
         <div class="slide active" data-slide="0">
+            <img src="https://bgzbgz.github.io/fast-track-tool-system-v4/fonts/FastTrack_F_White.png" alt="Fast Track" style="width:48px;height:auto;margin-bottom:24px;opacity:0.9;" onerror="this.style.display='none'">
             <h1>TOOL_NAME</h1>
             <p class="tagline">TAGLINE_TEXT</p>
             <button class="begin-btn" onclick="nextSlide()">BEGIN</button>
@@ -117,8 +123,35 @@ The template below is the ONLY correct pattern. Deviate and the tool WILL break.
             </div>
         </div>
 
-        <!-- COMMITMENT SLIDE -->
+        <!-- CASE STUDY SLIDE (Real World Example) -->
         <div class="slide" data-slide="N+1">
+            <button class="back-btn" onclick="previousSlide()">BACK</button>
+            <div class="results-content">
+                <h2>REAL WORLD EXAMPLE</h2>
+                <div class="case-study">
+                    <div class="case-study__section">
+                        <span class="case-study__label">SITUATION</span>
+                        <p>CASE_STUDY_SITUATION</p>
+                    </div>
+                    <div class="case-study__section">
+                        <span class="case-study__label">CHALLENGE</span>
+                        <p>CASE_STUDY_CHALLENGE</p>
+                    </div>
+                    <div class="case-study__section">
+                        <span class="case-study__label">SOLUTION</span>
+                        <p>CASE_STUDY_SOLUTION</p>
+                    </div>
+                    <div class="case-study__section">
+                        <span class="case-study__label">RESULT</span>
+                        <p>CASE_STUDY_RESULT</p>
+                    </div>
+                </div>
+                <button class="continue-btn" onclick="nextSlide()">CONTINUE</button>
+            </div>
+        </div>
+
+        <!-- COMMITMENT SLIDE -->
+        <div class="slide" data-slide="N+2">
             <div class="commitment-content">
                 <h2>YOUR COMMITMENT</h2>
                 <input class="input-field" id="who" placeholder="Who is responsible?">
@@ -187,8 +220,9 @@ What to change:
 4. Fill in QUESTION_LABEL, HELPER_TEXT, INSIGHT_TEXT for each slide
 5. Implement the calculation logic in JavaScript
 6. Build the results slide with GO/NO-GO verdict
-7. Wire up saveResults() to POST to the API
-8. Add any additional CSS you need AFTER the comment "ADD YOUR ADDITIONAL STYLES HERE"
+7. Fill in the CASE STUDY slide with a realistic example relevant to the tool's domain (Situation, Challenge, Solution, Result)
+8. Wire up saveResults() to POST to the API
+9. Add any additional CSS you need AFTER the comment "ADD YOUR ADDITIONAL STYLES HERE"
 
 What NOT to change:
 - The slide system CSS (.slide, .slide.active, .slide.past, position:absolute)
@@ -212,7 +246,8 @@ Style: Sharp corners (NO border-radius). Bold uppercase headlines. Action verbs.
 1. WELCOME SLIDE: Tool name + tagline + BEGIN button. First slide, class="slide active".
 2. QUESTION SLIDES: One per input. Each has: back button, question label, helper text, input field, course insight box, continue button.
 3. RESULTS SLIDE: Large GO/NO-GO verdict (green #4CAF50 / red #F44336), calculation breakdown, expert quote if provided, key findings.
-4. COMMITMENT SLIDE: Who/What/When inputs, SAVE button, privacy notice.
+4. CASE STUDY SLIDE: "REAL WORLD EXAMPLE" with Situation/Challenge/Solution/Result. Generate a relevant, realistic example based on the tool's domain and target audience.
+5. COMMITMENT SLIDE: Who/What/When inputs, SAVE button, privacy notice.
 </slide_content_rules>
 
 <builder_context>
@@ -247,9 +282,10 @@ IMPORTANT: Always include the _userIdentity fields. They are null for direct acc
 3. One question per full-screen slide
 4. Course insight box on every question slide
 5. Large GO/NO-GO verdict on results
-6. Privacy message under save button
-7. Brand colors only
-8. goToSlide/nextSlide/previousSlide navigation intact
+6. Case study slide with Situation/Challenge/Solution/Result
+7. Privacy message under save button
+8. Brand colors only
+9. goToSlide/nextSlide/previousSlide navigation intact
 </quality_checklist>`
 };
 

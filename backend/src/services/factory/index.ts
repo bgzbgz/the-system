@@ -133,6 +133,8 @@ export class ToolFactory {
     if (isCourseContent) {
       // Use Course Processor for course content
       console.log(`[Factory] Detected course content for job ${request.jobId}, using CourseProcessor`);
+      context.currentStage = 'secretary'; // Mark as started
+      logStageStart(context, 'secretary');
 
       const courseProcessor = new CourseProcessor(aiService, request.jobId);
       const courseResult = await courseProcessor.processContent(request.userRequest);

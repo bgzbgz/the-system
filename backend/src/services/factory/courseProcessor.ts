@@ -25,6 +25,7 @@ import {
   validatePhases
 } from './validation';
 import { ValidationResult, BuilderContext } from './types';
+import { createLog, generateSummary, AgentStage } from '../logStore';
 
 export interface CourseAnalysis {
   moduleTitle: string;
@@ -470,6 +471,20 @@ export class CourseProcessor {
         usedFallback: response.usedFallback
       });
 
+      // Log to MongoDB for frontend visibility
+      createLog({
+        job_id: this.jobId,
+        stage: 'content-summarizer' as AgentStage,
+        provider: response.provider === 'gemini' ? 'gemini' : 'claude',
+        model: response.model,
+        prompt: contentSummarizerPrompt.systemPrompt.substring(0, 500),
+        response: response.content.substring(0, 2000),
+        input_tokens: response.usage.inputTokens,
+        output_tokens: response.usage.outputTokens,
+        duration_ms: response.durationMs,
+        summary: `Summarized ${(content.length / 1024).toFixed(0)}KB of course content to ${(response.content.length / 1024).toFixed(0)}KB. Used ${response.usage.outputTokens.toLocaleString()} tokens.`
+      }).catch(err => console.error('[CourseProcessor] Log write failed:', err));
+
       return response.content;
     } catch (error) {
       logger.logError('[CourseProcessor] Summarization failed', error as Error, { jobId: this.jobId });
@@ -528,7 +543,26 @@ export class CourseProcessor {
         return null;
       }
 
-      return JSON.parse(jsonMatch[0]) as CourseAnalysis;
+      const parsed = JSON.parse(jsonMatch[0]) as CourseAnalysis;
+
+      // Log to MongoDB for frontend visibility
+      const termCount = parsed.deepContent?.keyTerminology?.length || 0;
+      const quoteCount = parsed.deepContent?.expertWisdom?.length || 0;
+      const frameworkName = parsed.deepContent?.numberedFramework?.frameworkName || parsed.framework?.name || 'none';
+      createLog({
+        job_id: this.jobId,
+        stage: 'course-analyst' as AgentStage,
+        provider: response.provider === 'gemini' ? 'gemini' : 'claude',
+        model: response.model,
+        prompt: courseAnalystPrompt.systemPrompt.substring(0, 500),
+        response: response.content.substring(0, 5000),
+        input_tokens: response.usage.inputTokens,
+        output_tokens: response.usage.outputTokens,
+        duration_ms: response.durationMs,
+        summary: `Analyzed "${parsed.moduleTitle || 'course content'}". Found framework: ${frameworkName}, ${termCount} terms, ${quoteCount} expert quotes.`
+      }).catch(err => console.error('[CourseProcessor] Log write failed:', err));
+
+      return parsed;
     } catch (error) {
       logger.logError('[CourseProcessor] Analysis failed', error as Error, { jobId: this.jobId });
       return null;
@@ -570,7 +604,23 @@ Design a tool that helps students APPLY the knowledge from this course to their 
         return null;
       }
 
-      return JSON.parse(jsonMatch[0]) as ToolDesign;
+      const parsed = JSON.parse(jsonMatch[0]) as ToolDesign;
+
+      // Log to MongoDB for frontend visibility
+      createLog({
+        job_id: this.jobId,
+        stage: 'knowledge-architect' as AgentStage,
+        provider: response.provider === 'gemini' ? 'gemini' : 'claude',
+        model: response.model,
+        prompt: knowledgeArchitectPrompt.systemPrompt.substring(0, 500),
+        response: response.content.substring(0, 5000),
+        input_tokens: response.usage.inputTokens,
+        output_tokens: response.usage.outputTokens,
+        duration_ms: response.durationMs,
+        summary: `Designed "${parsed.toolDesign?.name || 'tool'}" with ${(parsed.inputs || []).length} inputs. ${parsed.phases ? `${parsed.phases.length} phases (wizard mode).` : 'Single-step mode.'}`
+      }).catch(err => console.error('[CourseProcessor] Log write failed:', err));
+
+      return parsed;
     } catch (error) {
       logger.logError('[CourseProcessor] Design failed', error as Error, { jobId: this.jobId });
       return null;

@@ -498,7 +498,252 @@ function renderConfirmStep(container: HTMLElement): void {
     await submitTool();
   });
 
-  // TODO: Add edit functionality for each section
+  // Edit functionality for each section
+  attachEditHandlers(container);
+}
+
+/**
+ * Attach inline edit handlers to all analysis sections
+ */
+function attachEditHandlers(container: HTMLElement): void {
+  const analysis = state.analysis;
+  if (!analysis) return;
+
+  container.querySelectorAll('.analysis-section__edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const section = (e.target as HTMLElement).closest('.analysis-section');
+      if (!section) return;
+      const sectionId = section.getAttribute('data-section');
+      if (!sectionId) return;
+      enterEditMode(section as HTMLElement, sectionId);
+    });
+  });
+}
+
+/**
+ * Enter edit mode for a specific section
+ */
+function enterEditMode(sectionEl: HTMLElement, sectionId: string): void {
+  const analysis = state.analysis;
+  if (!analysis) return;
+
+  const contentEl = sectionEl.querySelector('.analysis-section__content');
+  const editBtn = sectionEl.querySelector('.analysis-section__edit');
+  if (!contentEl || !editBtn) return;
+
+  // Store original HTML for cancel
+  const originalHtml = contentEl.innerHTML;
+
+  // Hide the EDIT button, show SAVE/CANCEL
+  (editBtn as HTMLElement).style.display = 'none';
+  const headerEl = sectionEl.querySelector('.analysis-section__header');
+  if (!headerEl) return;
+
+  const actionBtns = document.createElement('div');
+  actionBtns.className = 'analysis-section__edit-actions';
+  actionBtns.innerHTML = `
+    <button type="button" class="btn btn--primary btn--small analysis-section__save">SAVE</button>
+    <button type="button" class="btn btn--text btn--small analysis-section__cancel">CANCEL</button>
+  `;
+  headerEl.appendChild(actionBtns);
+
+  // Render edit form based on section
+  switch (sectionId) {
+    case 'tool-name':
+      contentEl.innerHTML = `
+        <div class="edit-form">
+          <div class="form-group">
+            <label class="form-label">Tool Name</label>
+            <input type="text" class="input-field edit-field" data-field="suggestedToolName" value="${escapeHtmlAttr(analysis.suggestedToolName)}">
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">Purpose</label>
+            <textarea class="input-field edit-field" data-field="toolPurpose" rows="3">${escapeHtmlAttr(analysis.toolPurpose)}</textarea>
+          </div>
+        </div>
+      `;
+      break;
+
+    case 'core-insight':
+      contentEl.innerHTML = `
+        <div class="edit-form">
+          <div class="form-group">
+            <label class="form-label">Core Insight</label>
+            <textarea class="input-field edit-field" data-field="coreInsight" rows="4">${escapeHtmlAttr(analysis.coreInsight)}</textarea>
+          </div>
+        </div>
+      `;
+      break;
+
+    case 'decision':
+      contentEl.innerHTML = `
+        <div class="edit-form">
+          <div class="form-group">
+            <label class="form-label">Decision Type</label>
+            <select class="input-field edit-field" data-field="decisionType">
+              ${['go-no-go', 'scoring', 'comparison', 'calculator'].map(t =>
+                `<option value="${t}" ${analysis.decisionType === t ? 'selected' : ''}>${t.toUpperCase()}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">Decision Question</label>
+            <input type="text" class="input-field edit-field" data-field="decisionQuestion" value="${escapeHtmlAttr(analysis.decisionQuestion)}">
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">GO Condition</label>
+            <input type="text" class="input-field edit-field" data-field="goCondition" value="${escapeHtmlAttr(analysis.goCondition)}">
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">NO-GO Condition</label>
+            <input type="text" class="input-field edit-field" data-field="noGoCondition" value="${escapeHtmlAttr(analysis.noGoCondition)}">
+          </div>
+        </div>
+      `;
+      break;
+
+    case 'inputs':
+      contentEl.innerHTML = `
+        <div class="edit-form">
+          ${analysis.suggestedInputs.map((input, i) => `
+            <div class="edit-input-row" style="margin-bottom:16px;padding:12px;background:rgba(255,255,255,0.05);">
+              <div class="form-group">
+                <label class="form-label">Input ${i + 1} Label</label>
+                <input type="text" class="input-field edit-input-label" data-index="${i}" value="${escapeHtmlAttr(input.label)}">
+              </div>
+              <div class="form-group" style="margin-top:8px">
+                <label class="form-label">Type</label>
+                <select class="input-field edit-input-type" data-index="${i}">
+                  ${['number', 'currency', 'percentage', 'slider', 'text', 'select'].map(t =>
+                    `<option value="${t}" ${input.type === t ? 'selected' : ''}>${t}</option>`
+                  ).join('')}
+                </select>
+              </div>
+              <div class="form-group" style="margin-top:8px">
+                <label class="form-label">Hint (optional)</label>
+                <input type="text" class="input-field edit-input-hint" data-index="${i}" value="${escapeHtmlAttr(input.hint || '')}">
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      break;
+
+    default:
+      // Section not editable, restore
+      (editBtn as HTMLElement).style.display = '';
+      actionBtns.remove();
+      return;
+  }
+
+  // Attach save handler
+  actionBtns.querySelector('.analysis-section__save')?.addEventListener('click', () => {
+    saveEdits(sectionEl, sectionId, contentEl, editBtn as HTMLElement, actionBtns, originalHtml);
+  });
+
+  // Attach cancel handler
+  actionBtns.querySelector('.analysis-section__cancel')?.addEventListener('click', () => {
+    contentEl.innerHTML = originalHtml;
+    (editBtn as HTMLElement).style.display = '';
+    actionBtns.remove();
+  });
+}
+
+/**
+ * Save edits from an edit form
+ */
+function saveEdits(
+  _sectionEl: HTMLElement,
+  sectionId: string,
+  contentEl: Element,
+  editBtn: HTMLElement,
+  actionBtns: HTMLElement,
+  _originalHtml: string
+): void {
+  const analysis = state.analysis;
+  if (!analysis) return;
+
+  switch (sectionId) {
+    case 'tool-name': {
+      const name = (contentEl.querySelector('[data-field="suggestedToolName"]') as HTMLInputElement)?.value.trim();
+      const purpose = (contentEl.querySelector('[data-field="toolPurpose"]') as HTMLTextAreaElement)?.value.trim();
+      if (name) {
+        analysis.suggestedToolName = name;
+        state.edits.suggestedToolName = name;
+      }
+      if (purpose) {
+        analysis.toolPurpose = purpose;
+        state.edits.toolPurpose = purpose;
+      }
+      break;
+    }
+
+    case 'core-insight': {
+      const insight = (contentEl.querySelector('[data-field="coreInsight"]') as HTMLTextAreaElement)?.value.trim();
+      if (insight) {
+        analysis.coreInsight = insight;
+        state.edits.coreInsight = insight;
+      }
+      break;
+    }
+
+    case 'decision': {
+      const decisionType = (contentEl.querySelector('[data-field="decisionType"]') as HTMLSelectElement)?.value;
+      const question = (contentEl.querySelector('[data-field="decisionQuestion"]') as HTMLInputElement)?.value.trim();
+      const go = (contentEl.querySelector('[data-field="goCondition"]') as HTMLInputElement)?.value.trim();
+      const nogo = (contentEl.querySelector('[data-field="noGoCondition"]') as HTMLInputElement)?.value.trim();
+      if (decisionType) {
+        analysis.decisionType = decisionType as ContentAnalysisResult['decisionType'];
+        state.edits.decisionType = decisionType as ContentAnalysisResult['decisionType'];
+      }
+      if (question) {
+        analysis.decisionQuestion = question;
+        state.edits.decisionQuestion = question;
+      }
+      if (go) {
+        analysis.goCondition = go;
+        state.edits.goCondition = go;
+      }
+      if (nogo) {
+        analysis.noGoCondition = nogo;
+        state.edits.noGoCondition = nogo;
+      }
+      break;
+    }
+
+    case 'inputs': {
+      const updatedInputs = [...analysis.suggestedInputs];
+      contentEl.querySelectorAll('.edit-input-row').forEach((row) => {
+        const idx = parseInt((row.querySelector('.edit-input-label') as HTMLInputElement)?.getAttribute('data-index') || '0');
+        const label = (row.querySelector('.edit-input-label') as HTMLInputElement)?.value.trim();
+        const type = (row.querySelector('.edit-input-type') as HTMLSelectElement)?.value;
+        const hint = (row.querySelector('.edit-input-hint') as HTMLInputElement)?.value.trim();
+        if (updatedInputs[idx]) {
+          if (label) updatedInputs[idx].label = label;
+          if (type) updatedInputs[idx].type = type as any;
+          updatedInputs[idx].hint = hint || undefined;
+        }
+      });
+      analysis.suggestedInputs = updatedInputs;
+      state.edits.suggestedInputs = updatedInputs;
+      break;
+    }
+  }
+
+  // Re-render the confirm step to show updated values
+  actionBtns.remove();
+  editBtn.style.display = '';
+  render();
+  addToast('success', 'Changes saved', 2000);
+}
+
+function escapeHtmlAttr(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 async function submitTool(): Promise<void> {
@@ -614,6 +859,10 @@ export async function renderCreateToolView(container: HTMLElement): Promise<void
   currentContainer = container;
   resetState();
 
+  // Check for pre-selected template from URL hash params (e.g., #/create?template=B2B_PRODUCT)
+  const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const preselectedTemplateId = hashParams.get('template');
+
   // Load templates
   try {
     templates = await getTemplates();
@@ -624,32 +873,41 @@ export async function renderCreateToolView(container: HTMLElement): Promise<void
       {
         id: 'B2B_PRODUCT',
         name: 'B2B Product',
-        description: 'Tools for business customers evaluating physical or digital products.',
-        examples: ['ROI Calculator', 'Product Comparison Tool'],
-        ideal_for: 'Software, equipment, hardware'
+        description: 'Physical or digital goods sold to businesses. Decisions focus on ROI, implementation effort, and competitive advantage. Buyers need data-backed justification.',
+        examples: ['ROI Calculator', 'Implementation Readiness Assessment', 'Feature Comparison Tool'],
+        ideal_for: 'SaaS platforms, manufacturing equipment, enterprise software, hardware solutions'
       },
       {
         id: 'B2B_SERVICE',
         name: 'B2B Service',
-        description: 'Tools for business customers evaluating service offerings.',
-        examples: ['Vendor Selection Scorecard', 'Partnership Assessment'],
-        ideal_for: 'Consulting, agencies, professional services'
+        description: 'Professional services and ongoing engagements sold to businesses. Decisions focus on scope, vendor fit, and partnership value. Relationships and trust matter most.',
+        examples: ['Vendor Selection Scorecard', 'Partnership Readiness Quiz', 'Service Scope Calculator'],
+        ideal_for: 'Consulting firms, marketing agencies, outsourcing, professional services, managed IT'
       },
       {
         id: 'B2C_PRODUCT',
         name: 'B2C Product',
-        description: 'Tools for individual consumers evaluating products.',
-        examples: ['Product Fit Quiz', 'Purchase Decision Helper'],
-        ideal_for: 'Consumer goods, retail, e-commerce'
+        description: 'Consumer goods purchased by individuals. Decisions are often emotional and lifestyle-driven. Tools help buyers find the right fit for their personal situation.',
+        examples: ['Product Fit Quiz', 'Purchase Decision Helper', 'Value Assessment Tool'],
+        ideal_for: 'Retail, e-commerce, consumer electronics, FMCG, health & wellness products'
       },
       {
         id: 'B2C_SERVICE',
         name: 'B2C Service',
-        description: 'Tools for individual consumers evaluating services.',
-        examples: ['Membership Value Calculator', 'Service Selection Guide'],
-        ideal_for: 'Subscriptions, memberships, coaching'
+        description: 'Services consumed by individuals. Decisions weigh personal goals, time commitment, and ongoing value. Tools help users assess if a service fits their life.',
+        examples: ['Membership Value Calculator', 'Goal Alignment Quiz', 'Service Selection Guide'],
+        ideal_for: 'Fitness, education, coaching, healthcare, hospitality, subscription services'
       }
     ];
+  }
+
+  // If a template was pre-selected via URL, skip to upload step
+  if (preselectedTemplateId) {
+    const preselected = templates.find(t => t.id === preselectedTemplateId);
+    if (preselected) {
+      state.selectedTemplate = preselected;
+      state.step = 'upload';
+    }
   }
 
   render();

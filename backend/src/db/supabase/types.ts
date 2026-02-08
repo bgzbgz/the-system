@@ -131,6 +131,8 @@ export interface ContentAnalysisResult {
  * User's edits to the AI's understanding
  */
 export interface AnalysisEdits {
+  suggestedToolName?: string;
+  toolPurpose?: string;
   coreInsight?: string;
   decisionType?: ContentAnalysisResult['decisionType'];
   decisionQuestion?: string;

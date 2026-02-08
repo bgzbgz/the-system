@@ -20,6 +20,9 @@ export type AIProvider = 'claude' | 'gemini';
  */
 export type AgentStage =
   | 'secretary'
+  | 'content-summarizer'
+  | 'course-analyst'
+  | 'knowledge-architect'
   | 'tool-build'
   | 'template-select'
   | 'qa-eval'

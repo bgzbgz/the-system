@@ -386,30 +386,30 @@ router.get('/templates', (_req: Request, res: Response) => {
     {
       id: 'B2B_PRODUCT',
       name: 'B2B Product',
-      description: 'Tools for business customers evaluating physical or digital products. Includes ROI calculators, product comparisons, feature evaluators, and implementation readiness assessments.',
-      examples: ['ROI Calculator', 'Product Comparison Tool', 'Implementation Readiness Assessment'],
-      ideal_for: 'Software, equipment, hardware, enterprise solutions'
+      description: 'Physical or digital goods sold to businesses. Decisions focus on ROI, implementation effort, and competitive advantage. Buyers need data-backed justification.',
+      examples: ['ROI Calculator', 'Implementation Readiness Assessment', 'Feature Comparison Tool'],
+      ideal_for: 'SaaS platforms, manufacturing equipment, enterprise software, hardware solutions'
     },
     {
       id: 'B2B_SERVICE',
       name: 'B2B Service',
-      description: 'Tools for business customers evaluating service offerings. Includes service scope calculators, vendor selection tools, partnership readiness assessments, and contract value analyzers.',
-      examples: ['Vendor Selection Scorecard', 'Partnership Readiness Quiz', 'Service Pricing Calculator'],
-      ideal_for: 'Consulting, agencies, professional services, outsourcing'
+      description: 'Professional services and ongoing engagements sold to businesses. Decisions focus on scope, vendor fit, and partnership value. Relationships and trust matter most.',
+      examples: ['Vendor Selection Scorecard', 'Partnership Readiness Quiz', 'Service Scope Calculator'],
+      ideal_for: 'Consulting firms, marketing agencies, outsourcing, professional services, managed IT'
     },
     {
       id: 'B2C_PRODUCT',
       name: 'B2C Product',
-      description: 'Tools for individual consumers evaluating products. Includes purchase decision tools, product fit quizzes, value assessments, and lifestyle compatibility checks.',
+      description: 'Consumer goods purchased by individuals. Decisions are often emotional and lifestyle-driven. Tools help buyers find the right fit for their personal situation.',
       examples: ['Product Fit Quiz', 'Purchase Decision Helper', 'Value Assessment Tool'],
-      ideal_for: 'Consumer goods, retail, e-commerce, personal products'
+      ideal_for: 'Retail, e-commerce, consumer electronics, FMCG, health & wellness products'
     },
     {
       id: 'B2C_SERVICE',
       name: 'B2C Service',
-      description: 'Tools for individual consumers evaluating services. Includes service selection tools, membership value calculators, subscription decision aids, and personal goal alignment quizzes.',
-      examples: ['Membership Value Calculator', 'Service Selection Guide', 'Goal Alignment Quiz'],
-      ideal_for: 'Subscriptions, memberships, personal services, coaching'
+      description: 'Services consumed by individuals. Decisions weigh personal goals, time commitment, and ongoing value. Tools help users assess if a service fits their life.',
+      examples: ['Membership Value Calculator', 'Goal Alignment Quiz', 'Service Selection Guide'],
+      ideal_for: 'Fitness, education, coaching, healthcare, hospitality, subscription services'
     }
   ];
 

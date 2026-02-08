@@ -11,11 +11,18 @@ export type AIProvider = 'claude' | 'gemini';
  */
 export type AgentStage =
   | 'secretary'
+  | 'content-summarizer'
+  | 'course-analyst'
+  | 'knowledge-architect'
   | 'tool-build'
   | 'template-select'
   | 'qa-eval'
   | 'feedback-apply'
   | 'revision'
+  | 'audience-profile'
+  | 'brand-audit'
+  | 'copy-write'
+  | 'example-gen'
   | 'unknown';
 
 /**
@@ -31,13 +38,20 @@ export interface StageConfig {
  * Stage configuration map
  */
 export const STAGE_CONFIG: Record<AgentStage, StageConfig> = {
-  'secretary':       { displayName: 'SECRETARY',        icon: '01', order: 1 },
-  'tool-build':      { displayName: 'TOOL BUILDER',     icon: '02', order: 2 },
-  'template-select': { displayName: 'TEMPLATE DECIDER', icon: '03', order: 3 },
-  'qa-eval':         { displayName: 'QA DEPARTMENT',    icon: '04', order: 4 },
-  'feedback-apply':  { displayName: 'FEEDBACK APPLIER', icon: '05', order: 5 },
-  'revision':        { displayName: 'REVISION',         icon: '06', order: 6 },
-  'unknown':         { displayName: 'UNKNOWN',          icon: '??', order: 99 }
+  'secretary':           { displayName: 'SECRETARY',           icon: '01', order: 1 },
+  'content-summarizer':  { displayName: 'CONTENT SUMMARIZER',  icon: '02', order: 2 },
+  'course-analyst':      { displayName: 'COURSE ANALYST',      icon: '03', order: 3 },
+  'knowledge-architect': { displayName: 'KNOWLEDGE ARCHITECT', icon: '04', order: 4 },
+  'audience-profile':    { displayName: 'AUDIENCE PROFILER',   icon: '05', order: 5 },
+  'example-gen':         { displayName: 'EXAMPLE GENERATOR',   icon: '06', order: 6 },
+  'copy-write':          { displayName: 'COPY WRITER',         icon: '07', order: 7 },
+  'template-select':     { displayName: 'TEMPLATE DECIDER',    icon: '08', order: 8 },
+  'tool-build':          { displayName: 'TOOL BUILDER',        icon: '09', order: 9 },
+  'brand-audit':         { displayName: 'BRAND GUARDIAN',      icon: '10', order: 10 },
+  'qa-eval':             { displayName: 'QA DEPARTMENT',       icon: '11', order: 11 },
+  'feedback-apply':      { displayName: 'FEEDBACK APPLIER',    icon: '12', order: 12 },
+  'revision':            { displayName: 'REVISION',            icon: '13', order: 13 },
+  'unknown':             { displayName: 'UNKNOWN',             icon: '??', order: 99 }
 };
 
 /**
