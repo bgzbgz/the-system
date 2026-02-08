@@ -36,6 +36,10 @@ export type AuditAction =
   | 'DEPLOYED'
   | 'FAILED';
 
+export type FieldStatus = 'draft' | 'submitted';
+
+export type ToolProgressStatus = 'locked' | 'unlocked' | 'in_progress' | 'completed';
+
 // ========== TABLE TYPES ==========
 
 export interface Tenant {
@@ -225,6 +229,9 @@ export interface ToolDefault {
     enabled: boolean;
     minimumScore: number;
   };
+  sprint_number: number | null;
+  module_number: number | null;
+  canonical_slug: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -250,6 +257,69 @@ export interface ToolResponseRow {
   referrer: string | null;
   created_at: string;
   completed_at: string | null;
+}
+
+// ========== COMPOUNDING WORK TYPES (Migration 003) ==========
+
+export interface SchemaField {
+  id: string;
+  field_id: string;
+  field_name: string;
+  field_type: 'text' | 'longtext' | 'number' | 'json' | 'array';
+  module_number: number;
+  sprint_number: number;
+  produced_by_tool: string;
+  used_by_tools: string[];
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientFieldResponse {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  tool_slug: string;
+  field_id: string;
+  value: unknown;
+  status: FieldStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientFieldResponseInsert {
+  tenant_id?: string;
+  user_id: string;
+  tool_slug: string;
+  field_id: string;
+  value: unknown;
+  status?: FieldStatus;
+}
+
+export interface UserToolProgress {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  tool_slug: string;
+  status: ToolProgressStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  last_updated_at: string;
+}
+
+export interface UserToolProgressInsert {
+  tenant_id?: string;
+  user_id: string;
+  tool_slug: string;
+  status: ToolProgressStatus | string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface ToolDependency {
+  field_id: string;
+  label: string;
+  is_required: boolean;
 }
 
 // ========== NEW TABLE TYPES (Migration) ==========
@@ -597,10 +667,13 @@ export interface Database {
       };
       tool_defaults: {
         Row: ToolDefault;
-        Insert: Omit<ToolDefault, 'id' | 'created_at' | 'updated_at'> & {
+        Insert: Omit<ToolDefault, 'id' | 'created_at' | 'updated_at' | 'sprint_number' | 'module_number' | 'canonical_slug'> & {
           id?: string;
           created_at?: string;
           updated_at?: string;
+          sprint_number?: number | null;
+          module_number?: number | null;
+          canonical_slug?: string | null;
         };
         Update: Partial<Omit<ToolDefault, 'id' | 'tenant_id' | 'tool_slug'>>;
       };

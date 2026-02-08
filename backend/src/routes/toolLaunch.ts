@@ -100,11 +100,22 @@ router.get('/launch/:toolSlug', async (req: Request, res: Response) => {
     // Auto-redirect: look up tool's deployed URL from tool_defaults
     try {
       const toolDefault = await getToolDefault(toolSlug);
-      if (toolDefault?.github_url) {
-        const toolUrl = new URL(toolDefault.github_url);
-        userParams.forEach((val, key) => toolUrl.searchParams.set(key, val));
-        console.log(`[Tool Launch] Redirecting to: ${toolUrl.toString()}`);
-        return res.redirect(toolUrl.toString());
+      if (toolDefault) {
+        // If tool has sprint_number, redirect to the wrapper endpoint
+        // which injects dependency banner + bridge script
+        if (toolDefault.sprint_number) {
+          const wrapperUrl = `/tools/${toolSlug}/play?${userParams.toString()}`;
+          console.log(`[Tool Launch] Redirecting to wrapper: ${wrapperUrl}`);
+          return res.redirect(wrapperUrl);
+        }
+
+        // Non-sprint tool: redirect directly to GitHub Pages
+        if (toolDefault.github_url) {
+          const toolUrl = new URL(toolDefault.github_url);
+          userParams.forEach((val, key) => toolUrl.searchParams.set(key, val));
+          console.log(`[Tool Launch] Redirecting to: ${toolUrl.toString()}`);
+          return res.redirect(toolUrl.toString());
+        }
       }
     } catch (lookupErr) {
       console.warn(`[Tool Launch] Could not look up deployed URL for ${toolSlug}:`, lookupErr);

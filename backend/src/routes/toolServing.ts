@@ -6,8 +6,16 @@
 
 import express, { Request, Response } from 'express';
 import { getDependenciesWithValues, DependencyWithValue } from '../db/supabase/services/dependencyService';
-import { hasToolAccess, markToolAsInProgress } from '../db/supabase/services/progressService';
+import { hasToolAccess, markToolAsInProgress, markToolAsCompleted, unlockNextTool } from '../db/supabase/services/progressService';
 import { getToolHtml } from '../db/supabase/services/jobService';
+import { getToolDefault } from '../db/supabase/services/toolDefaultService';
+import {
+  fetchToolHtml,
+  getSprintDependencies,
+  buildSprintBannerHtml,
+  buildBridgeScript,
+  injectIntoToolHtml,
+} from '../services/toolWrapper';
 
 /**
  * Generate HTML for a single locked box (T028, T029)
@@ -383,6 +391,166 @@ router.get('/tools/:slug/access-check', async (req: Request, res: Response) => {
     console.error('Access check error:', error);
     res.status(500).json({
       error: 'Failed to check access',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /tools/:slug/play
+ *
+ * Server-side proxy wrapper that fetches tool HTML from GitHub Pages,
+ * injects a sprint dependency banner and bridge script, and serves
+ * the enhanced page. For tools without sprint_number, redirects to
+ * GitHub Pages directly (backward compatible).
+ */
+router.get('/tools/:slug/play', async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const { user_id, email, name, company, course } = req.query;
+
+    // Look up tool in tool_defaults
+    const toolDefault = await getToolDefault(slug);
+
+    if (!toolDefault) {
+      return res.status(404).json({
+        error: 'Tool not found',
+        tool_slug: slug,
+      });
+    }
+
+    // If no sprint_number, redirect directly to GitHub Pages (backward compatible)
+    if (!toolDefault.sprint_number) {
+      if (toolDefault.github_url) {
+        const redirectUrl = new URL(toolDefault.github_url);
+        if (user_id) redirectUrl.searchParams.set('user_id', user_id as string);
+        if (email) redirectUrl.searchParams.set('email', email as string);
+        if (name) redirectUrl.searchParams.set('name', name as string);
+        return res.redirect(redirectUrl.toString());
+      }
+      return res.status(404).json({
+        error: 'Tool has no deployed URL',
+        tool_slug: slug,
+      });
+    }
+
+    // Sprint tool — serve with wrapper
+    if (!toolDefault.github_url) {
+      return res.status(404).json({
+        error: 'Tool has no deployed URL',
+        tool_slug: slug,
+      });
+    }
+
+    const userId = (user_id as string) || 'anonymous';
+
+    // Check user access (if they have progress records)
+    const hasAccess = await hasToolAccess(userId, slug);
+    if (!hasAccess) {
+      return res.status(403).send(`
+        <!DOCTYPE html>
+        <html><head><title>Tool Locked</title></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5;">
+          <div style="text-align: center; max-width: 500px; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h1 style="color: #e74c3c;">Sprint Locked</h1>
+            <p>You need to complete the previous sprints before accessing Sprint ${toolDefault.sprint_number}.</p>
+            <p style="color: #7f8c8d;">Complete your current sprint tools first, then this one will unlock automatically.</p>
+          </div>
+        </body></html>
+      `);
+    }
+
+    // Mark tool as in_progress
+    await markToolAsInProgress(userId, slug).catch(() => {});
+
+    // Fetch tool HTML from GitHub Pages (cached)
+    const toolHtmlContent = await fetchToolHtml(toolDefault.github_url);
+
+    // Get sprint dependencies
+    const sprintDeps = await getSprintDependencies(toolDefault.sprint_number, userId);
+
+    // Build banner HTML
+    const bannerHtml = buildSprintBannerHtml(toolDefault.sprint_number, sprintDeps);
+
+    // Build bridge script
+    const apiBase = `${req.protocol}://${req.get('host')}/api`;
+    const bridgeScript = buildBridgeScript({
+      apiBase,
+      slug,
+      userId,
+      sprintNumber: toolDefault.sprint_number,
+    });
+
+    // Inject banner + bridge into tool HTML
+    const enhancedHtml = injectIntoToolHtml(toolHtmlContent, bannerHtml, bridgeScript);
+
+    // Serve the enhanced HTML
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(enhancedHtml);
+
+  } catch (error: any) {
+    console.error('[ToolServing] Play error:', error);
+    res.status(500).json({
+      error: 'Failed to serve tool',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * POST /tools/:slug/complete
+ *
+ * Mark a sprint tool as completed and unlock the next sprint.
+ * Called by the bridge script after a tool response is submitted.
+ */
+router.post('/tools/:slug/complete', async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        error: 'Missing required field: user_id',
+      });
+    }
+
+    // Look up tool's sprint_number
+    const toolDefault = await getToolDefault(slug);
+    if (!toolDefault?.sprint_number) {
+      return res.status(404).json({
+        error: 'Tool not found or has no sprint number',
+        tool_slug: slug,
+      });
+    }
+
+    // Mark as completed
+    await markToolAsCompleted(user_id, slug);
+
+    // Unlock next sprint tool
+    let nextSprint: number | null = null;
+    try {
+      const nextProgress = await unlockNextTool(user_id, slug);
+      if (nextProgress) {
+        nextSprint = toolDefault.sprint_number + 1;
+      }
+    } catch (unlockErr) {
+      // Non-fatal — log but don't fail the completion
+      console.warn(`[ToolServing] Failed to unlock next sprint after ${slug}:`, unlockErr);
+    }
+
+    console.log(`[ToolServing] Completed: ${slug} for user ${user_id}, next sprint: ${nextSprint || 'none'}`);
+
+    res.status(200).json({
+      success: true,
+      tool_slug: slug,
+      sprint_number: toolDefault.sprint_number,
+      nextSprint,
+    });
+  } catch (error: any) {
+    console.error('[ToolServing] Complete error:', error);
+    res.status(500).json({
+      error: 'Failed to mark tool as complete',
       message: error.message,
     });
   }

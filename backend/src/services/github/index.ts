@@ -45,6 +45,9 @@ export function buildDefaultsFromJob(
   deployed_at: string;
   tool_config: Record<string, unknown>;
   course_context: Record<string, unknown>;
+  sprint_number?: number;
+  module_number?: number;
+  canonical_slug?: string;
 } {
   const slug = job.slug || '';
   const toolName = job.tool_name || 'Unnamed Tool';
@@ -103,14 +106,27 @@ export function buildDefaultsFromJob(
     }
   }
 
-  return {
+  // Extract sprint metadata from job if available
+  // These come from the course analysis or job metadata
+  const jobMeta = job as any; // Access extended fields that may exist
+  const sprintNumber = jobMeta.sprint_number || (toolConfig as any).sprint_number || undefined;
+  const moduleNumber = jobMeta.module_number || (toolConfig as any).module_number || undefined;
+  const canonicalSlug = jobMeta.canonical_slug || (toolConfig as any).canonical_slug || undefined;
+
+  const result: any = {
     tool_slug: slug,
     tool_name: toolName,
     github_url: githubUrl,
     deployed_at: new Date().toISOString(),
     tool_config: toolConfig,
-    course_context: courseContext
+    course_context: courseContext,
   };
+
+  if (sprintNumber != null) result.sprint_number = sprintNumber;
+  if (moduleNumber != null) result.module_number = moduleNumber;
+  if (canonicalSlug) result.canonical_slug = canonicalSlug;
+
+  return result;
 }
 
 // ========== GITHUB SERVICE CLASS ==========
