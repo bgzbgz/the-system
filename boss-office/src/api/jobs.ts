@@ -38,6 +38,7 @@ export async function listJobs(status?: JobStatus): Promise<Job[]> {
   return response.data.map((job) => ({
     _id: job.job_id,
     status: job.status as JobStatus,
+    slug: (job as any).slug || '',
     fileName: job.file_name,
     fileContent: '', // Not returned in list
     toolName: job.tool_name || null,
@@ -92,6 +93,7 @@ export async function getJob(jobId: string): Promise<Job> {
   return {
     _id: job.job_id,
     status: job.status as JobStatus,
+    slug: (job as any).slug || '',
     fileName: job.file_name,
     fileContent: job.file_content || '',
     toolName: job.tool_name || null,
@@ -150,6 +152,7 @@ export async function createJob(data: CreateJobRequest): Promise<Job> {
   return {
     _id: response.job_id,
     status: response.status as JobStatus,
+    slug: response.slug || '',
     fileName: data.fileName,
     fileContent: data.fileContent,
     toolName: null,
@@ -195,6 +198,7 @@ export async function approveJob(jobId: string): Promise<JobResponse> {
   const job: Job = response.job ? {
     _id: response.job.job_id,
     status: response.job.status as JobStatus,
+    slug: response.job.slug || '',
     fileName: response.job.file_name,
     fileContent: '',
     toolName: response.job.tool_name || null,
@@ -211,6 +215,7 @@ export async function approveJob(jobId: string): Promise<JobResponse> {
     // Minimal job if backend didn't return full job
     _id: response.job_id,
     status: response.status as JobStatus,
+    slug: '',
     fileName: '',
     fileContent: '',
     toolName: null,
@@ -257,6 +262,7 @@ export async function requestRevision(jobId: string, notes: string): Promise<Job
   return {
     _id: job.job_id,
     status: job.status as JobStatus,
+    slug: job.slug || '',
     fileName: job.file_name,
     fileContent: '',
     toolName: job.tool_name || null,
@@ -470,6 +476,7 @@ export async function createJobFromAnalysis(
   return {
     _id: response.job_id,
     status: response.status as JobStatus,
+    slug: response.slug || '',
     fileName: fileName,
     fileContent: fileContent,
     toolName: response.tool_name || analysis.suggestedToolName,

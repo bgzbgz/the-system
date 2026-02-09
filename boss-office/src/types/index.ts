@@ -50,6 +50,7 @@ export interface QAReport {
 export interface Job {
   _id: string;
   status: JobStatus;
+  slug: string;
   fileName: string;
   fileContent: string;
   toolName: string | null;

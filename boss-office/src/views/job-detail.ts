@@ -254,6 +254,9 @@ function renderJobDetail(container: HTMLElement, job: Job): void {
               <strong>Tool Deployed!</strong>
               <a href="${job.deployedUrl}" target="_blank" rel="noopener noreferrer">${job.deployedUrl}</a>
             </div>
+            <button class="btn btn--secondary btn--small job-detail__lms-link-btn" title="Copy LearnWorlds launch link">
+              COPY LMS LINK
+            </button>
           </div>
         ` : ''}
       </div>
@@ -646,6 +649,21 @@ function attachJobDetailListeners(container: HTMLElement, job: Job): void {
       showError(error instanceof Error ? error.message : 'Failed to retry');
       retryJobBtn.disabled = false;
       retryJobBtn.textContent = 'RETRY';
+    }
+  });
+
+  // LMS Link button (copy launch URL to clipboard)
+  const lmsLinkBtn = container.querySelector<HTMLButtonElement>('.job-detail__lms-link-btn');
+  lmsLinkBtn?.addEventListener('click', async () => {
+    const slug = job.slug || '';
+    const lmsUrl = `https://the-system-production.up.railway.app/api/tools/launch/${slug}?lw_user={{user.id}}&email={{user.email}}`;
+    try {
+      await navigator.clipboard.writeText(lmsUrl);
+      lmsLinkBtn.textContent = 'COPIED!';
+      setTimeout(() => { lmsLinkBtn.textContent = 'COPY LMS LINK'; }, 2000);
+    } catch {
+      // Fallback: select from prompt
+      prompt('Copy this LMS link:', lmsUrl);
     }
   });
 
